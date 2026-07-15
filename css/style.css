@@ -424,6 +424,165 @@ img, svg {
   margin-bottom: 6px;
 }
 
+/* Age-to-Program Mapping */
+.age-mapping {
+  padding: 0 24px 40px;
+}
+
+.age-mapping-table {
+  max-width: 800px;
+  margin: 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.age-mapping-header {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr auto;
+  align-items: center;
+  background: var(--color-text);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.age-mapping-label {
+  padding: 12px 20px;
+}
+
+.age-mapping-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 1fr auto;
+  align-items: center;
+  text-decoration: none;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.15s ease;
+}
+
+.age-mapping-row:last-child {
+  border-bottom: none;
+}
+
+.age-mapping-row:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.age-mapping-cell {
+  padding: 16px 20px;
+  font-size: 0.95rem;
+}
+
+.age-mapping-age {
+  text-align: center;
+}
+
+.age-mapping-badge {
+  display: inline-block;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+
+.age-mapping-visual-discovery .age-mapping-badge {
+  background: var(--color-visual-discovery);
+}
+
+.age-mapping-creative-foundations .age-mapping-badge {
+  background: var(--color-creative-foundations);
+}
+
+.age-mapping-portfolio-studio .age-mapping-badge {
+  background: var(--color-portfolio-studio);
+}
+
+.age-mapping-program {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.age-mapping-icon {
+  font-size: 1.2rem;
+}
+
+.age-mapping-focus {
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
+.age-mapping-arrow {
+  padding: 16px 20px;
+  color: var(--color-text-muted);
+  font-size: 1.1rem;
+  transition: transform 0.15s ease;
+}
+
+.age-mapping-row:hover .age-mapping-arrow {
+  transform: translateX(3px);
+}
+
+/* Accent left border on rows */
+.age-mapping-visual-discovery { border-left: 4px solid var(--color-visual-discovery); }
+.age-mapping-creative-foundations { border-left: 4px solid var(--color-creative-foundations); }
+.age-mapping-portfolio-studio { border-left: 4px solid var(--color-portfolio-studio); }
+
+@media (max-width: 720px) {
+  .age-mapping-header {
+    display: none;
+  }
+
+  .age-mapping-row {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    padding: 16px;
+    gap: 0;
+  }
+
+  .age-mapping-cell {
+    padding: 4px 0;
+  }
+
+  .age-mapping-age {
+    grid-column: 1 / -1;
+    text-align: left;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 8px;
+  }
+
+  .age-mapping-program {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+  }
+
+  .age-mapping-focus {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    font-size: 0.82rem;
+    padding-top: 8px;
+  }
+
+  .age-mapping-arrow {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    padding: 0 0 0 8px;
+  }
+}
+
 @media (max-width: 800px) {
   .program-grid {
     grid-template-columns: 1fr;
@@ -482,4 +641,1066 @@ img, svg {
   .contact-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ===== Schedule (weekly calendar) ===== */
+.art-calendar {
+  max-width: var(--container-width);
+  margin: 0 auto 80px;
+  padding: 0 24px;
+}
+
+.art-calendar h3 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  font-weight: 400;
+}
+
+.calendar-semester {
+  color: var(--color-visual-discovery);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Semester selector tabs */
+.calendar-semester-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.semester-tab {
+  padding: 0.4rem 1.2rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: var(--font-body);
+  color: var(--color-text-muted);
+  transition: all 0.15s;
+}
+
+.semester-tab:hover {
+  border-color: var(--color-visual-discovery);
+  color: var(--color-visual-discovery);
+}
+
+.semester-tab.active {
+  background: var(--color-visual-discovery);
+  color: #fff;
+  border-color: var(--color-visual-discovery);
+}
+
+.semester-tab:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Legend */
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+
+/* Grid wrapper — horizontal scroll on small screens */
+.calendar-grid-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+/* Desktop weekly grid */
+.calendar-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(7, 1fr);
+  min-width: 700px;
+}
+
+/* All cells share base */
+.calendar-cell {
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.5rem;
+  min-height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar-cell:last-child {
+  border-right: none;
+}
+
+/* Corner cell (top-left) */
+.calendar-corner {
+  background: var(--color-bg);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* Day header cells */
+.calendar-day-header {
+  background: var(--color-bg);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+  color: var(--color-text);
+  min-height: 45px;
+}
+
+/* Time label column */
+.calendar-time-label {
+  background: #faf8f3;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+/* Empty cell */
+.calendar-empty {
+  background: #fdfcf9;
+}
+
+/* Class cell with a class in it */
+.calendar-class-cell {
+  padding: 0.3rem;
+  align-items: stretch;
+}
+
+/* The class card (clickable link) */
+.calendar-class {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  width: 100%;
+  height: 100%;
+  padding: 0.4rem 0.25rem;
+  border-radius: 5px;
+  border: 1px solid;
+  border-left-width: 3px;
+  text-decoration: none;
+  text-align: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+
+.calendar-class:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-class-program {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.calendar-class-time {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.calendar-class-age {
+  font-size: 0.68rem;
+  opacity: 0.7;
+}
+
+.calendar-class-price {
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-top: 0.1rem;
+}
+
+/* ===== Mobile: list view grouped by day ===== */
+.calendar-mobile {
+  display: none;
+}
+
+.calendar-day-group {
+  margin-bottom: 1.5rem;
+}
+
+.calendar-day-title {
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+  color: var(--color-visual-discovery);
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.calendar-day-classes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.calendar-class-mobile {
+  display: block;
+  text-decoration: none;
+  padding: 0.6rem 0.8rem;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.calendar-class-mobile:hover {
+  transform: translateX(3px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.calendar-class-mobile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.calendar-class-mobile-header .calendar-class-program {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.calendar-class-mobile-header .calendar-class-price {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.calendar-class-mobile-details {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* Responsive: switch to mobile list view */
+@media (max-width: 768px) {
+  .calendar-grid-wrapper {
+    display: none;
+  }
+  .calendar-mobile {
+    display: block;
+  }
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.empty-state p {
+  margin-bottom: 1rem;
+  color: var(--color-text-muted);
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+/* ===== Auth pages (login / signup) ===== */
+.auth-page {
+  max-width: 460px;
+  margin: 4rem auto;
+  padding: 0 24px;
+}
+
+.auth-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 2.5rem 2rem;
+  border-radius: var(--radius);
+}
+
+.auth-card h2 {
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  gap: 0.35rem;
+  color: var(--color-text);
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-text);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  border-radius: 6px;
+}
+
+.auth-btn {
+  margin-top: 0.5rem;
+  width: 100%;
+  cursor: pointer;
+}
+
+.auth-error {
+  background: #fdf0ee;
+  border: 1px solid #c0392b;
+  color: #c0392b;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.auth-switch a {
+  color: var(--color-visual-discovery);
+}
+
+.nav-account {
+  color: var(--color-visual-discovery) !important;
+}
+
+/* ===== Account page ===== */
+.account-page {
+  max-width: 800px;
+  margin: 3rem auto;
+  padding: 0 24px;
+}
+
+.account-header {
+  margin-bottom: 2rem;
+}
+
+.account-header h2 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 2rem;
+}
+
+.account-email {
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+
+.enrollment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.enrollment-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border-radius: var(--radius);
+}
+
+.enrollment-info h4 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.enrollment-status {
+  text-align: right;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.8rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-family: var(--font-body);
+  border-radius: 4px;
+  margin-left: 0.25rem;
+}
+
+.status-pending {
+  background: #fef3cd;
+  color: #856404;
+}
+
+.status-confirmed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-cancelled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-registered {
+  background: #2d7a2d;
+  color: #fff;
+}
+
+.payment-success-banner {
+  background: #d4edda;
+  border: 1px solid #155724;
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 6px;
+}
+
+.payment-success-banner p {
+  color: #155724;
+}
+
+.payment-cancel-banner {
+  background: #fff3cd;
+  border: 1px solid #856404;
+  padding: 1rem 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 6px;
+}
+
+.payment-cancel-banner p {
+  color: #856404;
+}
+
+/* Enrollment card expanded */
+.enrollment-card-expanded {
+  padding: 1.5rem;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.enrollment-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+  gap: 1rem;
+}
+
+/* Credit balance display */
+.credit-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.credit-positive {
+  background: #e8f5e9;
+  color: #2d7a2d;
+}
+
+.credit-negative {
+  background: #fbe9e9;
+  color: #c0392b;
+}
+
+.credit-label {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.credit-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* Upcoming classes list */
+.upcoming-classes {
+  margin-bottom: 1rem;
+}
+
+.upcoming-classes h5 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.upcoming-class-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+  background: var(--color-surface);
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.upcoming-class-info {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.upcoming-class-date {
+  font-weight: 500;
+}
+
+.upcoming-class-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* Booking type badges */
+.booking-type-badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.booking-type-home {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.booking-type-makeup {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+/* Make-up booking section */
+.makeup-section {
+  border-top: 1px solid var(--color-border);
+  padding-top: 1rem;
+}
+
+.makeup-list {
+  margin-top: 0.75rem;
+}
+
+.makeup-session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+  background: var(--color-surface);
+  gap: 0.5rem;
+}
+
+.makeup-session-info {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.makeup-session-date {
+  font-weight: 500;
+}
+
+/* Small button variant */
+.btn-sm {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+}
+
+.btn-secondary {
+  background: var(--color-text-muted);
+}
+
+.btn-danger {
+  background: #c0392b;
+}
+
+/* ===== Enrollment page ===== */
+.enroll-page {
+  max-width: 600px;
+  margin: 3rem auto;
+  padding: 0 24px;
+}
+
+.enroll-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 2rem;
+  border-radius: var(--radius);
+}
+
+.enroll-card h2 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+
+.enroll-program-info {
+  margin-bottom: 1.5rem;
+}
+
+.enroll-program-info h3 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.enroll-schedule-details {
+  background: var(--color-bg);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 6px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detail-row:last-of-type {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.price-highlight {
+  color: var(--color-visual-discovery);
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.schedule-note {
+  margin-top: 1rem;
+  font-style: italic;
+}
+
+.enroll-auth-prompt {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.enroll-auth-prompt h4 {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  font-weight: 500;
+}
+
+.enroll-auth-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+.enroll-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.enroll-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  gap: 0.35rem;
+  color: var(--color-text);
+}
+
+.enroll-form input {
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--color-text);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  border-radius: 6px;
+}
+
+.enroll-disclaimer {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+.back-link {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+/* ===== Pricing Breakdown (enroll page) ===== */
+.pricing-breakdown {
+  background: #faf8f3;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.pricing-breakdown h4 {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  font-family: var(--font-body);
+  color: var(--color-text);
+}
+
+.pricing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 0;
+  font-size: 0.9rem;
+}
+
+.pricing-row label {
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.pricing-subtotal {
+  font-weight: 500;
+  border-top: 1px solid var(--color-border);
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+}
+
+.pricing-discount {
+  color: #2d7a2d;
+  font-weight: 500;
+}
+
+.pricing-total {
+  border-top: 2px solid var(--color-text);
+  margin-top: 0.5rem;
+  padding-top: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.pricing-total .price-highlight {
+  font-size: 1.3rem;
+}
+
+.early-bird-expired {
+  font-size: 0.8rem;
+  padding: 0.25rem 0;
+}
+
+.num-classes-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.num-classes-control button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 4px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.num-classes-control button:hover:not(:disabled) {
+  background: var(--color-bg);
+}
+
+.num-classes-control button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.num-classes-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  min-width: 24px;
+  text-align: center;
+}
+
+.num-classes-max {
+  font-size: 0.8rem;
+}
+
+.session-badge {
+  display: inline-block;
+  background: var(--color-visual-discovery);
+  color: #fff;
+  padding: 0.15rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+.spots-available {
+  color: #2d7a2d;
+  font-weight: 500;
+}
+
+.spots-full {
+  color: #c0392b;
+  font-weight: 500;
+}
+
+.enroll-full-prompt {
+  text-align: center;
+  padding: 1.5rem;
+  background: #faf8f3;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+.enroll-full-prompt h4 {
+  margin-bottom: 0.5rem;
+  color: #c0392b;
+}
+
+.enroll-full-prompt p {
+  margin-bottom: 1rem;
+  color: var(--color-text-muted);
+}
+
+/* ===== Registration Page ===== */
+.registration-page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 2rem 24px;
+}
+
+.registration-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 2.5rem 2rem;
+  border-radius: var(--radius);
+}
+
+.registration-card h2 {
+  font-family: var(--font-heading);
+  font-size: 1.8rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.registration-summary {
+  background: #faf8f3;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.registration-summary h4 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.registration-summary p {
+  margin: 0.15rem 0;
+}
+
+.registration-summary-pricing {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.registration-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.registration-form h4 {
+  font-size: 1rem;
+  font-weight: 500;
+  font-family: var(--font-body);
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  color: var(--color-text);
+}
+
+.registration-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  gap: 0.35rem;
+  color: var(--color-text);
+}
+
+.registration-form input,
+.registration-form textarea,
+.registration-form select {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  font-family: var(--font-body);
+}
+
+.registration-form input:focus,
+.registration-form textarea:focus {
+  outline: none;
+  border-color: var(--color-visual-discovery);
+}
+
+.readonly-input {
+  background: #f5f5f5 !important;
+  color: var(--color-text-muted) !important;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 600px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Agreement Section ===== */
+.agreement-section {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 1.25rem;
+  margin-top: 1rem;
+  background: #fdfcf9;
+}
+
+.agreement-section h4 {
+  margin-top: 0;
+}
+
+.terms-scrollbox {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  padding: 1rem;
+  background: var(--color-surface);
+  margin-bottom: 1rem;
+  border-radius: 4px;
+}
+
+.terms-text {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  font-family: var(--font-body);
+  margin: 0;
+}
+
+.agreement-checkbox {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-bottom: 1rem;
+}
+
+.agreement-checkbox input {
+  margin-top: 0.2rem;
+  width: auto;
+}
+
+.signature-row {
+  margin-top: 0.5rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
 }

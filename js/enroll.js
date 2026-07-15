@@ -1,0 +1,334 @@
+// Enroll page — class details, pricing breakdown, Stripe checkout.
+// Ported from herfield app/art-class/enroll/[scheduleId]/EnrollPageClient.js.
+import { apiGet, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
+import { isLoggedIn, getUser, getToken } from "./auth.js";
+
+const scheduleId = getQueryParam("schedule");
+const paymentCancelled = getQueryParam("payment") === "cancelled";
+
+const state = {
+  user: null,
+  schedule: null,
+  program: null,
+  enrollmentCount: 0,
+  loading: true,
+  error: "",
+  enrolling: false,
+  studentName: "",
+  studentPhone: "",
+  numClasses: 8,
+};
+
+const root = document.getElementById("enroll-root");
+
+function el(tag, className, html) {
+  const e = document.createElement(tag);
+  if (className) e.className = className;
+  if (html != null) e.innerHTML = html;
+  return e;
+}
+
+function render() {
+  root.innerHTML = "";
+
+  if (state.loading) {
+    root.appendChild(el("p", "muted", "Loading…"));
+    return;
+  }
+
+  if (state.error && !state.schedule) {
+    root.appendChild(el("p", "auth-error", state.error));
+    const back = el("a", "btn", "Back to Schedule");
+    back.href = "schedule.html";
+    root.appendChild(back);
+    return;
+  }
+
+  root.appendChild(el("h2", "", "Enroll in Class"));
+
+  if (paymentCancelled) {
+    const banner = el("div", "payment-cancel-banner");
+    banner.appendChild(el("p", "", "Payment was cancelled. You can try again below."));
+    root.appendChild(banner);
+  }
+  if (state.error) {
+    root.appendChild(el("p", "auth-error", state.error));
+  }
+
+  // Program info
+  if (state.program) {
+    const info = el("div", "enroll-program-info");
+    info.appendChild(el("h3", "", state.program.name));
+    info.appendChild(el("p", "muted", state.program.description || ""));
+    if (state.program.session_type && state.program.session_type !== "standard") {
+      info.appendChild(el("span", "session-badge", `${state.program.session_type} session`));
+    }
+    root.appendChild(info);
+  }
+
+  // Schedule details
+  const schedule = state.schedule;
+  const program = state.program;
+  const pricePerClass = schedule ? schedule.price_cents : 0;
+  const maxClasses = program ? program.num_classes || 8 : 8;
+  const earlyBirdPct = schedule
+    ? schedule.early_bird_discount_pct || program?.early_bird_discount_pct || 0
+    : 0;
+  const earlyBirdDeadlineRaw = schedule?.early_bird_deadline || program?.early_bird_deadline;
+  const earlyBirdDeadline = earlyBirdDeadlineRaw ? new Date(earlyBirdDeadlineRaw) : null;
+  const isEarlyBird = earlyBirdPct > 0 && (!earlyBirdDeadline || new Date() <= earlyBirdDeadline);
+
+  const subtotal = pricePerClass * state.numClasses;
+  const discountAmount = isEarlyBird ? Math.round((subtotal * earlyBirdPct) / 100) : 0;
+  const totalDue = subtotal - discountAmount;
+
+  const maxSeats = schedule ? schedule.max_seats : 0;
+  const spotsTaken = state.enrollmentCount;
+  const spotsAvailable = Math.max(0, maxSeats - spotsTaken);
+  const isFull = spotsAvailable === 0;
+
+  if (schedule) {
+    const details = el("div", "enroll-schedule-details");
+
+    const rowDay = el("div", "detail-row");
+    rowDay.appendChild(el("span", "detail-label", "Day"));
+    rowDay.appendChild(el("span", "", schedule.day_of_week));
+    details.appendChild(rowDay);
+
+    const rowTime = el("div", "detail-row");
+    rowTime.appendChild(el("span", "detail-label", "Time"));
+    rowTime.appendChild(el("span", "", `${formatTime(schedule.start_time)} – ${formatTime(schedule.end_time)}`));
+    details.appendChild(rowTime);
+
+    const rowAge = el("div", "detail-row");
+    rowAge.appendChild(el("span", "detail-label", "Age Group"));
+    rowAge.appendChild(el("span", "", schedule.age_group));
+    details.appendChild(rowAge);
+
+    const rowSpots = el("div", "detail-row");
+    rowSpots.appendChild(el("span", "detail-label", "Available Spots"));
+    rowSpots.appendChild(el("span", isFull ? "spots-full" : "spots-available",
+      `${spotsAvailable} of ${maxSeats} remaining`));
+    details.appendChild(rowSpots);
+
+    if (schedule.notes) {
+      details.appendChild(el("p", "schedule-note muted", schedule.notes));
+    }
+    root.appendChild(details);
+  }
+
+  // Pricing breakdown
+  const pricing = el("div", "pricing-breakdown");
+  pricing.appendChild(el("h4", "", "Price Breakdown"));
+
+  const rowPrice = el("div", "pricing-row");
+  rowPrice.appendChild(el("span", "", "Price per class"));
+  rowPrice.appendChild(el("span", "", formatPrice(pricePerClass)));
+  pricing.appendChild(rowPrice);
+
+  // Number-of-classes stepper
+  const rowClasses = el("div", "pricing-row");
+  const lbl = el("label", "", "Number of classes");
+  lbl.setAttribute("for", "num-classes");
+  rowClasses.appendChild(lbl);
+
+  const ctrl = el("div", "num-classes-control");
+  const minusBtn = el("button", "", "−");
+  minusBtn.type = "button";
+  minusBtn.disabled = state.numClasses <= 1 || isFull;
+  minusBtn.onclick = () => { state.numClasses = Math.max(1, state.numClasses - 1); render(); };
+  ctrl.appendChild(minusBtn);
+
+  ctrl.appendChild(el("span", "num-classes-value", String(state.numClasses)));
+
+  const plusBtn = el("button", "", "+");
+  plusBtn.type = "button";
+  plusBtn.disabled = state.numClasses >= maxClasses || isFull;
+  plusBtn.onclick = () => { state.numClasses = Math.min(maxClasses, state.numClasses + 1); render(); };
+  ctrl.appendChild(plusBtn);
+
+  ctrl.appendChild(el("span", "muted num-classes-max", `of ${maxClasses}`));
+  rowClasses.appendChild(ctrl);
+  pricing.appendChild(rowClasses);
+
+  const rowSub = el("div", "pricing-row pricing-subtotal");
+  rowSub.appendChild(el("span", "", "Subtotal"));
+  rowSub.appendChild(el("span", "", formatPrice(subtotal)));
+  pricing.appendChild(rowSub);
+
+  if (isEarlyBird) {
+    const rowDisc = el("div", "pricing-row pricing-discount");
+    rowDisc.appendChild(el("span", "", `Early-bird discount (${earlyBirdPct}%)`));
+    rowDisc.appendChild(el("span", "", `−${formatPrice(discountAmount)}`));
+    pricing.appendChild(rowDisc);
+  } else if (earlyBirdPct > 0 && earlyBirdDeadline) {
+    pricing.appendChild(el("p", "early-bird-expired muted",
+      `Early-bird discount expired on ${earlyBirdDeadline.toLocaleDateString()}`));
+  }
+
+  const rowTotal = el("div", "pricing-row pricing-total");
+  rowTotal.appendChild(el("span", "", "Total Due"));
+  const totalSpan = el("span", "price-highlight", formatPrice(totalDue));
+  rowTotal.appendChild(totalSpan);
+  pricing.appendChild(rowTotal);
+  root.appendChild(pricing);
+
+  // Footer section: full / auth / form
+  if (isFull) {
+    const full = el("div", "enroll-full-prompt");
+    full.appendChild(el("h4", "", "This class is currently full"));
+    full.appendChild(el("p", "", "Please check back later or browse other available classes."));
+    const browse = el("a", "btn", "Browse Other Classes");
+    browse.href = "schedule.html";
+    full.appendChild(browse);
+    root.appendChild(full);
+  } else if (!state.user) {
+    const prompt = el("div", "enroll-auth-prompt");
+    prompt.appendChild(el("h4", "", "Please log in to enroll"));
+    prompt.appendChild(el("p", "", "You need an account to enroll and make payment."));
+    const btns = el("div", "enroll-auth-buttons");
+    const login = el("a", "btn", "Log In");
+    const next = encodeURIComponent(`enroll.html?schedule=${scheduleId}`);
+    login.href = `login.html?next=${next}`;
+    btns.appendChild(login);
+    const signup = el("a", "btn", "Sign Up");
+    signup.href = `signup.html?next=${next}`;
+    btns.appendChild(signup);
+    prompt.appendChild(btns);
+    root.appendChild(prompt);
+  } else {
+    const form = el("form", "enroll-form");
+    form.onsubmit = handleEnroll;
+
+    const lblName = el("label", "", "Student Name");
+    const inpName = document.createElement("input");
+    inpName.type = "text";
+    inpName.value = state.studentName;
+    inpName.required = true;
+    inpName.placeholder = "Student's full name";
+    inpName.oninput = (e) => (state.studentName = e.target.value);
+    lblName.appendChild(inpName);
+    form.appendChild(lblName);
+
+    const lblPhone = el("label", "", "Phone Number");
+    const inpPhone = document.createElement("input");
+    inpPhone.type = "tel";
+    inpPhone.value = state.studentPhone;
+    inpPhone.placeholder = "(650) 555-0000";
+    inpPhone.oninput = (e) => (state.studentPhone = e.target.value);
+    lblPhone.appendChild(inpPhone);
+    form.appendChild(lblPhone);
+
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.className = "btn auth-btn";
+    submit.disabled = state.enrolling;
+    submit.textContent = state.enrolling
+      ? "Processing…"
+      : `Proceed to Payment — ${formatPrice(totalDue)}`;
+    form.appendChild(submit);
+
+    form.appendChild(el("p", "muted enroll-disclaimer",
+      "This is your regular weekly slot. You can skip a class and book a make-up " +
+      "in another time slot within the same program. You will be redirected to " +
+      "Stripe to complete payment securely, then complete a registration form."));
+    root.appendChild(form);
+  }
+}
+
+async function handleEnroll(e) {
+  e.preventDefault();
+  state.error = "";
+  const schedule = state.schedule;
+  const program = state.program;
+  const pricePerClass = schedule ? schedule.price_cents : 0;
+  const earlyBirdPct = schedule
+    ? schedule.early_bird_discount_pct || program?.early_bird_discount_pct || 0
+    : 0;
+  const earlyBirdDeadlineRaw = schedule?.early_bird_deadline || program?.early_bird_deadline;
+  const earlyBirdDeadline = earlyBirdDeadlineRaw ? new Date(earlyBirdDeadlineRaw) : null;
+  const isEarlyBird = earlyBirdPct > 0 && (!earlyBirdDeadline || new Date() <= earlyBirdDeadline);
+  const subtotal = pricePerClass * state.numClasses;
+  const discountAmount = isEarlyBird ? Math.round((subtotal * earlyBirdPct) / 100) : 0;
+  const totalDue = subtotal - discountAmount;
+  const maxSeats = schedule ? schedule.max_seats : 0;
+
+  if (maxSeats - state.enrollmentCount <= 0) {
+    state.error = "This class is full. Please try another schedule.";
+    render();
+    return;
+  }
+
+  state.enrolling = true;
+  render();
+  try {
+    const token = getToken();
+    const result = await callFunction(
+      "enroll-guard",
+      {
+        schedule_id: scheduleId,
+        student_name: state.studentName,
+        student_email: state.user?.email || "",
+        student_phone: state.studentPhone,
+        num_classes_enrolled: state.numClasses,
+        price_per_class_cents: pricePerClass,
+        discount_pct: isEarlyBird ? earlyBirdPct : 0,
+        total_paid_cents: totalDue,
+      },
+      token
+    );
+    window.location.href = result.checkout_url;
+  } catch (err) {
+    state.error = err.message;
+    state.enrolling = false;
+    render();
+  }
+}
+
+async function init() {
+  if (!scheduleId) {
+    state.error = "No class schedule specified.";
+    state.loading = false;
+    render();
+    return;
+  }
+
+  try {
+    const sched = await apiGet(`class_schedules?id=eq.${scheduleId}&active=eq.true`);
+    if (sched.length === 0) {
+      state.error = "Class schedule not found.";
+      state.loading = false;
+      render();
+      return;
+    }
+    state.schedule = sched[0];
+
+    const prog = await apiGet(`programs?id=eq.${sched[0].program_id}`);
+    if (prog.length > 0) {
+      state.program = prog[0];
+      state.numClasses = prog[0].num_classes || 8;
+    }
+
+    // Enrollment count (confirmed + pending) for capacity display
+    try {
+      const counts = await apiGet(
+        `enrollments?schedule_id=eq.${scheduleId}&status=in.(pending,confirmed)&select=id`
+      );
+      state.enrollmentCount = counts.length;
+    } catch {
+      state.enrollmentCount = 0;
+    }
+
+    if (isLoggedIn()) {
+      state.user = getUser();
+      state.studentName = state.user.display_name || state.user.email || "";
+    }
+  } catch (err) {
+    state.error = err.message;
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+init();
