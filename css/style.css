@@ -371,3 +371,27 @@ img, svg {
     order: -1;
   }
 }
+
+.about-intro, .about-bio, .about-philosophy, .about-class-size {
+  padding: 40px 24px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.about-intro {
+  padding-top: 60px;
+  text-align: center;
+  max-width: none;
+}
+
+.about-intro .tagline {
+  color: var(--color-creative-foundations);
+}
+
+.about-philosophy ul {
+  padding-left: 20px;
+}
+
+.about-class-size {
+  padding-bottom: 80px;
+}
