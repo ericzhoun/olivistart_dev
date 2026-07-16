@@ -21,6 +21,14 @@ function getColorForProgram(programId, programList) {
   return PROGRAM_COLORS[idx % PROGRAM_COLORS.length] || PROGRAM_COLORS[0];
 }
 
+export function schedulesBySlot(schedules) {
+  return schedules.reduce((slots, schedule) => {
+    const key = `${schedule.day_of_week}|${schedule.start_time}`;
+    (slots[key] ||= []).push(schedule);
+    return slots;
+  }, {});
+}
+
 const state = {
   semesters: [],
   programs: [],
@@ -113,8 +121,7 @@ function render() {
   state.schedules.forEach((s) => { if (byDay[s.day_of_week]) byDay[s.day_of_week].push(s); });
 
   const allTimes = [...new Set(state.schedules.map((s) => s.start_time))].sort();
-  const slotMap = {};
-  state.schedules.forEach((s) => { slotMap[`${s.day_of_week}|${s.start_time}`] = s; });
+  const slotMap = schedulesBySlot(state.schedules);
 
   const wrapper = el("div", "calendar-grid-wrapper");
   const grid = el("div", "calendar-grid");
@@ -127,25 +134,27 @@ function render() {
   allTimes.forEach((time) => {
     grid.appendChild(el("div", "calendar-cell calendar-time-label", formatTime(time)));
     DAYS.forEach((day) => {
-      const sched = slotMap[`${day}|${time}`];
-      if (!sched) {
+      const schedules = slotMap[`${day}|${time}`] || [];
+      if (schedules.length === 0) {
         grid.appendChild(el("div", "calendar-cell calendar-empty"));
         return;
       }
-      const prog = state.programs.find((p) => p.id === sched.program_id);
-      const color = getColorForProgram(sched.program_id, state.programs);
       const cell = el("div", "calendar-cell calendar-class-cell");
-      const a = el("a", "calendar-class");
-      a.href = `enroll.html?schedule=${sched.id}`;
-      a.style.background = color.bg;
-      a.style.borderColor = color.border;
-      a.style.color = color.text;
-      a.appendChild(el("span", "calendar-class-program", prog ? prog.name : "Class"));
-      a.appendChild(el("span", "calendar-class-time",
-        `${formatTime(sched.start_time)}–${formatTime(sched.end_time)}`));
-      a.appendChild(el("span", "calendar-class-age", sched.age_group));
-      a.appendChild(el("span", "calendar-class-price", formatPrice(sched.price_cents)));
-      cell.appendChild(a);
+      schedules.forEach((sched) => {
+        const prog = state.programs.find((p) => p.id === sched.program_id);
+        const color = getColorForProgram(sched.program_id, state.programs);
+        const a = el("a", "calendar-class");
+        a.href = `enroll.html?schedule=${sched.id}`;
+        a.style.background = color.bg;
+        a.style.borderColor = color.border;
+        a.style.color = color.text;
+        a.appendChild(el("span", "calendar-class-program", prog ? prog.name : "Class"));
+        a.appendChild(el("span", "calendar-class-time",
+          `${formatTime(sched.start_time)}–${formatTime(sched.end_time)}`));
+        a.appendChild(el("span", "calendar-class-age", sched.age_group));
+        a.appendChild(el("span", "calendar-class-price", formatPrice(sched.price_cents)));
+        cell.appendChild(a);
+      });
       grid.appendChild(cell);
     });
   });

@@ -974,6 +974,8 @@ a, button, input, select, textarea {
 .calendar-class-cell {
   padding: 0.3rem;
   align-items: stretch;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
 /* The class card (clickable link) */

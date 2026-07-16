@@ -11,3 +11,18 @@ test("schedule failures provide an accessible retry action", async () => {
   assert.match(script, /Try again/);
   assert.match(script, /retryScheduleLoad/);
 });
+
+test("weekly schedule retains multiple classes sharing a day and start time", async () => {
+  const script = await readSchedule();
+  const match = script.match(/export function schedulesBySlot[\s\S]*?\n}\n/);
+  assert.ok(match, "schedule slot grouping helper should be exported");
+
+  const moduleUrl = new URL(`data:text/javascript,${encodeURIComponent(`${match[0]}\nexport default schedulesBySlot;`)}`);
+  const { default: schedulesBySlot } = await import(moduleUrl);
+  const rows = schedulesBySlot([
+    { id: "photography", day_of_week: "Saturday", start_time: "10:00", end_time: "11:30" },
+    { id: "visual-discovery", day_of_week: "Saturday", start_time: "10:00", end_time: "12:00" },
+  ]);
+
+  assert.deepEqual(rows["Saturday|10:00"].map((schedule) => schedule.id), ["photography", "visual-discovery"]);
+});
