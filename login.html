@@ -13,6 +13,7 @@
 </head>
 
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="site-header">
     <div class="container header-inner">
       <a href="index.html" class="logo">OliVista <span>Art Studio</span></a>
@@ -31,25 +32,25 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
     <section class="auth-page">
       <div class="auth-card">
         <h2>Welcome Back</h2>
         <p class="auth-subtitle">Log in to manage your enrollments</p>
-        <p id="auth-error" class="auth-error" hidden></p>
-        <p id="auth-info" class="auth-info" hidden></p>
+        <p id="auth-error" class="auth-error" aria-live="polite" hidden></p>
+        <p id="auth-info" class="auth-info" aria-live="polite" hidden></p>
         <form id="login-form" class="auth-form">
           <label>
             Email
-            <input type="email" id="email" required placeholder="you@example.com">
+            <input type="email" id="email" name="email" autocomplete="email" spellcheck="false" required placeholder="you@example.com">
           </label>
           <label id="password-field">
             Password
-            <input type="password" id="password" required placeholder="••••••••">
+            <input type="password" id="password" name="password" autocomplete="current-password" required placeholder="••••••••">
           </label>
           <label id="code-field" hidden>
             6-digit code
-            <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code"
+            <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
                    maxlength="6" placeholder="123456" class="code-input">
           </label>
           <button type="submit" class="btn auth-btn" id="login-submit">Log In</button>
