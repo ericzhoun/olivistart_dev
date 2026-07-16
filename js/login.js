@@ -1,7 +1,7 @@
 // Login page logic - password or magic-link code. After any successful
 // login, unclaimed enrollments matching the verified email attach to the
 // account (guest-checkout recovery path).
-import { login, isLoggedIn, sendMagicLink, verifyMagicLink, claimEnrollments, refreshToken } from "./auth.js";
+import { login, isLoggedIn, getUser, sendMagicLink, verifyMagicLink, claimEnrollments, refreshToken } from "./auth.js";
 import { getQueryParam } from "./api.js";
 
 const errEl = document.getElementById("auth-error");
@@ -23,7 +23,7 @@ async function redirectIfSessionIsValid() {
   if (!isLoggedIn()) return;
   try {
     const token = await refreshToken();
-    if (!token) return;
+    if (!token || !getUser()) return;
     const next = getQueryParam("next");
     window.location.href = next || "account.html";
   } catch {

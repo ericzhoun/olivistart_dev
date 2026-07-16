@@ -161,7 +161,7 @@ export async function refreshToken() {
   }
   localStorage.setItem(TOKEN_KEY, data.access_token);
   localStorage.setItem(REFRESH_KEY, data.refresh_token);
-  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  if (data.user) localStorage.setItem(USER_KEY, JSON.stringify(data.user));
   return data.access_token;
 }
 
@@ -170,10 +170,11 @@ export async function refreshToken() {
  * return-to pointer back to the current page. Returns the user or null.
  */
 export function requireAuth() {
-  if (!isLoggedIn()) {
+  const user = getUser();
+  if (!isLoggedIn() || !user) {
     const here = encodeURIComponent(window.location.pathname + window.location.search);
     window.location.href = `login.html?next=${here}`;
     return null;
   }
-  return getUser();
+  return user;
 }
