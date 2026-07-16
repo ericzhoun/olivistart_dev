@@ -76,7 +76,7 @@ export async function handler(req, ctx) {
   const siteUrl = ctx.env.SITE_URL || "https://olivistart.com";
   const serviceHeaders = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${ctx.env.BUTTERBASE_API_KEY}`,
+    Authorization: `Bearer ${ctx.env.SERVICE_KEY}`,
   };
 
   // 5. Dynamically priced product

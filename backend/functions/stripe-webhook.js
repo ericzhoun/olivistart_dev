@@ -21,7 +21,7 @@ export async function handler(req, ctx) {
   const apiBase = ctx.env.BUTTERBASE_API_URL || "https://api.butterbase.ai";
   const appId = ctx.env.BUTTERBASE_APP_ID;
   const orderRes = await fetch(`${apiBase}/v1/${appId}/billing/orders/${order_id}`, {
-    headers: { Authorization: `Bearer ${ctx.env.BUTTERBASE_API_KEY}` },
+    headers: { Authorization: `Bearer ${ctx.env.SERVICE_KEY}` },
   });
   if (!orderRes.ok) {
     console.error("Order lookup failed:", orderRes.status, order_id);

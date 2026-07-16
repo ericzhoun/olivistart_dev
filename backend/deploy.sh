@@ -33,7 +33,7 @@ deploy_one() {
   [[ -f "$file" ]] || { echo "error: $file not found" >&2; return 1; }
 
   python3 - "$name" "$auth" "$path" "$impersonation" "$desc" "$file" <<'PY' > /tmp/bb-deploy-payload.json
-import json, sys
+import json, os, sys
 name, auth, path, impersonation, desc, file = sys.argv[1:7]
 payload = {
     "name": name,
@@ -41,7 +41,10 @@ payload = {
     "code": open(file).read(),
     "triggers": [{"type": "http", "config": {"auth": auth, "path": path, "method": "POST"}}],
     "allow_service_key_impersonation": impersonation == "true",
-    "envVars": {"SITE_URL": "https://olivistart.com"},
+    # SERVICE_KEY: the platform does not inject a REST-usable service key into
+    # ctx.env, so functions that call billing endpoints receive it here
+    # (encrypted at rest, never in the repo).
+    "envVars": {"SITE_URL": "https://olivistart.com", "SERVICE_KEY": os.environ["BUTTERBASE_API_KEY"]},
 }
 json.dump(payload, sys.stdout)
 PY

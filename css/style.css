@@ -208,8 +208,8 @@ img, svg {
 
 .hero-banner {
   position: relative;
-  max-width: var(--container-width);
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
 }
 
 .hero-banner img {
