@@ -2,8 +2,8 @@
 // the payment webhook; this page only claims it into an account via a
 // magic-link email code (proof of email ownership). Closing the browser here
 // loses nothing - the same claim runs on any later login.
-import { getQueryParam } from "./api.js";
-import { isLoggedIn, sendMagicLink, verifyMagicLink, claimEnrollments } from "./auth.js";
+import { getQueryParam, callFunction } from "./api.js";
+import { isLoggedIn, getToken, sendMagicLink, verifyMagicLink, claimEnrollments } from "./auth.js";
 
 const enrollmentId = getQueryParam("enrollment");
 
@@ -31,6 +31,16 @@ function el(tag, className, html) {
 
 function registrationHref() {
   return enrollmentId ? `registration.html?enrollment=${enrollmentId}` : "account.html";
+}
+
+// Poll the billing API for this enrollment's order status and confirm it if
+// paid. Billing has no webhook forward, so the page must trigger the sync.
+// Best-effort: never blocks the claim flow.
+async function syncPayment() {
+  if (!enrollmentId) return;
+  try {
+    await callFunction("sync-enrollment-payment", { enrollment_id: enrollmentId }, getToken());
+  } catch { /* best-effort */ }
 }
 
 function renderBanner() {
@@ -153,6 +163,7 @@ async function handleVerify(e) {
   try {
     await verifyMagicLink(state.email.trim().toLowerCase(), state.code.trim());
     await claimEnrollments();
+    await syncPayment();
     try { sessionStorage.removeItem("olivistart_pending_email"); } catch { /* ignore */ }
     window.location.href = registrationHref();
   } catch (err) {
@@ -165,6 +176,7 @@ async function handleVerify(e) {
 async function init() {
   if (isLoggedIn()) {
     await claimEnrollments();
+    await syncPayment();
     renderLoggedIn();
   } else {
     renderClaim();

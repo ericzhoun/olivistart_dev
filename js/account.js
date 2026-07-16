@@ -391,6 +391,29 @@ async function loadData() {
     state.enrollments = ens;
     state.bookings = bks;
 
+    // Sync any pending enrollments whose payment may have completed since the
+    // webhook path is unreliable (billing has no webhook forward). If any
+    // flipped to confirmed, reload bookings/sessions so the UI is consistent.
+    const pending = ens.filter((e) => e.status === "pending" && e.id);
+    if (pending.length > 0) {
+      let changed = false;
+      await Promise.all(pending.map(async (e) => {
+        try {
+          const r = await callFunction("sync-enrollment-payment", { enrollment_id: e.id }, token);
+          if (r.synced) changed = true;
+        } catch { /* best-effort; stay pending */ }
+      }));
+      if (changed) {
+        // Re-fetch so statuses, bookings, and sessions reflect the flip.
+        const [ens2, bks2] = await Promise.all([
+          apiGet("enrollments?order=created_at.desc", token),
+          apiGet("bookings?order=booked_at.desc", token),
+        ]);
+        state.enrollments = ens2;
+        state.bookings = bks2;
+      }
+    }
+
     if (bks.length > 0) {
       // Fetch session details for bookings
       const sessionIds = [...new Set(bks.map((b) => b.session_id))];

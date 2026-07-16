@@ -24,7 +24,8 @@ CONFIGS=(
   "complete-registration|required|/complete-registration|false|Saves the post-payment registration form for an enrollment the caller owns."
   "class-availability|none|/class-availability|false|Public seat availability (confirmed + fresh pending holds) for a schedule."
   "enroll-guard|required|/enroll|false|Logged-in enrollment with server-side pricing, dynamic product, and Stripe Checkout. Redirect URLs point to the static olivistart.com frontend."
-  "stripe-webhook|none|/stripe-webhook|false|Payment fulfillment: re-verifies order status via the billing API, then confirms enrollment and creates home bookings. Idempotent."
+  "stripe-webhook|none|/stripe-webhook|false|Payment fulfillment: re-verifies order status via the billing API, then confirms enrollment and creates home bookings. Idempotent.",
+  "sync-enrollment-payment|required|/sync-enrollment-payment|false|On-demand payment sync: reads order status from the billing API as the caller and confirms the enrollment if paid. Called by account/checkout-success pages since billing has no webhook forward."
 )
 
 deploy_one() {
