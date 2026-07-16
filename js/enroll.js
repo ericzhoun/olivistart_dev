@@ -312,7 +312,10 @@ async function init() {
   }
 
   try {
-    const sched = await apiGet(`class_schedules?id=eq.${scheduleId}&active=eq.true`);
+    const [sched, availability] = await Promise.all([
+      apiGet(`class_schedules?id=eq.${scheduleId}&active=eq.true`),
+      callFunction("class-availability", { schedule_id: scheduleId }).catch(() => null),
+    ]);
     if (sched.length === 0) {
       state.error = "Class schedule not found.";
       state.loading = false;
@@ -329,12 +332,7 @@ async function init() {
 
     // Seat availability (confirmed + fresh pending holds). Anonymous REST
     // reads of enrollments are blocked by RLS, so ask the public function.
-    try {
-      const avail = await callFunction("class-availability", { schedule_id: scheduleId });
-      state.enrollmentCount = avail.spots_taken;
-    } catch {
-      state.enrollmentCount = 0;
-    }
+    state.enrollmentCount = availability?.spots_taken || 0;
 
     if (isLoggedIn()) {
       state.user = getUser();

@@ -1,6 +1,6 @@
 // Account page — enrollments, credits, upcoming classes, make-up booking.
 // Ported from herfield app/account/AccountPageClient.js, compiled to vanilla JS.
-import { apiGet, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
+import { apiGet, apiGetByIds, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
 import { isLoggedIn, getUser, isAdmin, logout, getToken, refreshToken, requireAuth, claimEnrollments } from "./auth.js";
 
 // Require login — redirect to login.html if not authenticated.
@@ -395,19 +395,29 @@ async function loadData() {
       return;
     }
 
-    // Attach any unclaimed guest enrollments for this email (best-effort).
-    await claimEnrollments();
-    const [ens, bks] = await Promise.all([
+    // Claiming is independent of the normal account reads. Run it alongside
+    // them, then re-fetch only when new enrollments were actually claimed.
+    const [ens, bks, claimed] = await Promise.all([
       apiGet("enrollments?order=created_at.desc", token),
       apiGet("bookings?order=booked_at.desc", token),
+      claimEnrollments(),
     ]);
     state.enrollments = ens;
     state.bookings = bks;
 
+    if (claimed.length > 0) {
+      const [claimedEnrollments, claimedBookings] = await Promise.all([
+        apiGet("enrollments?order=created_at.desc", token),
+        apiGet("bookings?order=booked_at.desc", token),
+      ]);
+      state.enrollments = claimedEnrollments;
+      state.bookings = claimedBookings;
+    }
+
     // Sync any pending enrollments whose payment may have completed since the
     // webhook path is unreliable (billing has no webhook forward). If any
     // flipped to confirmed, reload bookings/sessions so the UI is consistent.
-    const pending = ens.filter((e) => e.status === "pending" && e.id);
+    const pending = state.enrollments.filter((e) => e.status === "pending" && e.id);
     if (pending.length > 0) {
       let changed = false;
       await Promise.all(pending.map(async (e) => {
@@ -427,30 +437,21 @@ async function loadData() {
       }
     }
 
-    if (bks.length > 0) {
+    if (state.bookings.length > 0) {
       // Fetch session details for bookings
-      const sessionIds = [...new Set(bks.map((b) => b.session_id))];
-      const sessResults = await Promise.all(
-        sessionIds.map((sid) => apiGet(`class_sessions?id=eq.${sid}`, token))
-      );
-      const allSessions = sessResults.flat();
+      const sessionIds = [...new Set(state.bookings.map((b) => b.session_id))];
+      const allSessions = await apiGetByIds("class_sessions", sessionIds, token);
       state.sessions = allSessions;
 
       // Fetch schedule details
       const schedIds = [...new Set(allSessions.map((s) => s.schedule_id))];
       if (schedIds.length > 0) {
-        const schedResults = await Promise.all(
-          schedIds.map((sid) => apiGet(`class_schedules?id=eq.${sid}`))
-        );
-        state.schedules = schedResults.flat();
+        state.schedules = await apiGetByIds("class_schedules", schedIds, token);
 
         // Fetch programs
         const progIds = [...new Set(state.schedules.map((s) => s.program_id))];
         if (progIds.length > 0) {
-          const progResults = await Promise.all(
-            progIds.map((pid) => apiGet(`programs?id=eq.${pid}`))
-          );
-          state.programs = progResults.flat();
+          state.programs = await apiGetByIds("programs", progIds, token);
         }
       }
     }

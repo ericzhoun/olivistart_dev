@@ -19,6 +19,13 @@ export async function apiGet(path, token) {
   return res.json();
 }
 
+/** Fetch rows by a set of UUIDs in one request instead of issuing one request per row. */
+export function apiGetByIds(table, ids, token) {
+  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  if (uniqueIds.length === 0) return Promise.resolve([]);
+  return apiGet(`${table}?id=in.(${uniqueIds.join(",")})`, token);
+}
+
 export async function adminApi(path, options = {}) {
   const method = options.method || "GET";
   const headers = { Authorization: `Bearer ${ADMIN_KEY}`, ...(options.headers || {}) };

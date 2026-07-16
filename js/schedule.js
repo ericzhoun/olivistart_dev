@@ -194,9 +194,12 @@ async function changeSemester(semesterId) {
 
 async function init() {
   try {
-    const sems = await apiGet("semesters?active=eq.true&order=start_date.desc");
+    const [sems, programs] = await Promise.all([
+      apiGet("semesters?active=eq.true&order=start_date.desc"),
+      apiGet("programs?active=eq.true&order=sort_order.asc"),
+    ]);
     state.semesters = sems;
-    state.programs = await apiGet("programs?active=eq.true&order=sort_order.asc");
+    state.programs = programs;
 
     if (sems.length > 0) {
       state.selectedSemester = sems[0].id;
