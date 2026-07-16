@@ -1,7 +1,13 @@
-// Payment fulfillment webhook. The endpoint is public (auth "none"), so the
-// payload is never trusted: the order status is re-verified against the
-// billing API with the service key before any state change. Fulfillment is
-// idempotent (status-transition guard on the unique stripe_order_id).
+// Payment fulfillment webhook, called by the Butterbase billing platform on
+// order status changes. Fulfillment is idempotent (status-transition guard on
+// the unique stripe_order_id).
+//
+// Limitation: the endpoint is public (auth "none") and the payload cannot be
+// re-verified - Butterbase's billing/orders reads are strictly end-user-scoped
+// (service keys and X-Butterbase-As-User both get "Order not found", verified
+// 2026-07-15), and deliveries carry no signature. Mitigation: order ids are
+// treated as secrets - guest-enroll and enroll-guard never return them to
+// clients - so forging a confirmation requires guessing a UUID.
 export async function handler(req, ctx) {
   let payload;
   try {
@@ -17,28 +23,10 @@ export async function handler(req, ctx) {
     return json({ received: true }, 200);
   }
 
-  // Verify against the billing API rather than trusting the payload.
-  const apiBase = ctx.env.BUTTERBASE_API_URL || "https://api.butterbase.ai";
-  const appId = ctx.env.BUTTERBASE_APP_ID;
-  const orderRes = await fetch(`${apiBase}/v1/${appId}/billing/orders/${order_id}`, {
-    headers: { Authorization: `Bearer ${ctx.env.SERVICE_KEY}` },
-  });
-  if (!orderRes.ok) {
-    console.error("Order lookup failed:", orderRes.status, order_id);
-    // 500 so the delivery is retried rather than silently dropped.
-    return json({ error: "Order lookup failed" }, 500);
-  }
-  const orderData = await orderRes.json();
-  const order = orderData.order || orderData;
-  const verifiedStatus = order.status || order.order_status;
-  if (verifiedStatus !== order_status) {
-    console.warn(`Payload status "${order_status}" does not match verified status "${verifiedStatus}" for order ${order_id}`);
-  }
-
   let newStatus = null;
-  if (verifiedStatus === "paid") {
+  if (order_status === "paid") {
     newStatus = "confirmed";
-  } else if (verifiedStatus === "failed" || verifiedStatus === "refunded") {
+  } else if (order_status === "failed" || order_status === "refunded") {
     newStatus = "cancelled";
   }
 

@@ -47,28 +47,48 @@ afterwards, without risking lost credits or orphaned payments.
 
 ### Flow
 
+(As-built 2026-07-15. Two constraints discovered during implementation reshaped the
+original sketch: `billing/purchase` requires a genuine end-user JWT - service keys pass
+authentication but have no purchaser, and `X-Butterbase-As-User` impersonation is not
+honored by billing endpoints - and billing order reads are equally user-scoped, so a
+webhook cannot re-verify order status.)
+
 1. Guest clicks a class on the schedule and lands on the enroll page. No login wall.
    The form shows student name, phone, and (for guests) a required email field.
 2. Submit calls a new public `guest-enroll` function which:
-   - re-checks seat availability server-side,
-   - creates an enrollment: `user_id = NULL`, `status = 'pending'`, `student_email` set,
-   - creates the dynamically priced product (same pricing math as `enroll-guard`),
-   - calls `billing/purchase` with the service key,
-   - stores `stripe_order_id`, returns the checkout URL.
+   - re-checks seat availability server-side and computes pricing from the database,
+   - creates a provisional account for the email via auth signup with a random
+     password that is never stored or revealed (if the email already has an account,
+     returns 409 `EMAIL_EXISTS` and the frontend routes to login instead),
+   - logs in as that account to obtain the end-user JWT billing requires,
+   - creates an enrollment owned by it: `status = 'pending'`,
+   - creates the dynamically priced product (service key),
+   - calls `billing/purchase` with the provisional account's JWT,
+   - stores `stripe_order_id`, returns the checkout URL (never the order id).
    Success URL: `checkout-success.html?enrollment={id}`. Cancel URL: back to the enroll page.
 3. Stripe collects payment. The existing `stripe-webhook` function fulfills: flips the
-   enrollment to `confirmed` and creates home bookings. This already works with
-   `user_id NULL` and is idempotent (`status != $1` guard on `stripe_order_id` lookup).
+   enrollment to `confirmed` and creates home bookings, idempotently (`status != $1`
+   guard on the unique `stripe_order_id`).
 4. Success page shows "You're enrolled! Create your account to manage this class." with
-   the email prefilled. One button emails the 6-digit code; entering it calls
-   `magic-link/verify`, which signs them in (creating the account only if needed, so an
-   existing email signs into its existing account, never a duplicate).
-5. A new `claim-enrollments` function (auth required) attaches every enrollment where
-   `student_email` matches the caller's verified email and `user_id IS NULL`, then the
-   page forwards to the existing registration form.
+   the email prefilled (via sessionStorage, never the URL). One button emails the
+   6-digit code; entering it calls `magic-link/verify`, which signs the buyer into the
+   provisional account that already owns the enrollment.
+5. A `claim-enrollments` function (auth required) additionally attaches any enrollment
+   where `student_email` matches the caller's verified email and `user_id IS NULL`
+   (legacy rows, admin-corrected emails). It runs after every login and on the account
+   page.
 
-Claiming is by proof of email ownership (the magic-link code). No claim token exists, so
-no URL alone can expose or claim a purchase.
+Claiming is by proof of email ownership (the magic-link code): the provisional account
+has no usable credentials until the code is redeemed. No claim token exists, so no URL
+alone can expose or claim a purchase.
+
+Known limits accepted for this deployment:
+- Auth endpoints are rate-limited per source IP (signup 5/15min). `guest-enroll` calls
+  signup/login from the function egress, so more than ~5 guest checkouts per 15 minutes
+  could be throttled. Fine at this studio's volume.
+- The webhook payload cannot be re-verified against the billing API (reads are
+  user-scoped) and carries no signature. Mitigation: order ids are never returned to
+  clients, so forging a confirmation requires guessing a UUID.
 
 ### Seat reservation
 

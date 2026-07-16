@@ -53,7 +53,15 @@ function render() {
     root.appendChild(banner);
   }
   if (state.error) {
-    root.appendChild(el("p", "auth-error", state.error));
+    const errEl = el("p", "auth-error", state.error);
+    if (/already exists/i.test(state.error)) {
+      errEl.appendChild(document.createTextNode(" "));
+      const link = el("a", "", "Log in");
+      link.href = `login.html?next=${encodeURIComponent(`enroll.html?schedule=${scheduleId}`)}`;
+      errEl.appendChild(link);
+      errEl.appendChild(document.createTextNode(" and your enrollment will use your account."));
+    }
+    root.appendChild(errEl);
   }
 
   // Program info

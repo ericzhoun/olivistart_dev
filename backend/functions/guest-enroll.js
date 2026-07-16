@@ -1,5 +1,10 @@
-// Guest checkout: creates an unclaimed pending enrollment (user_id NULL) and a
-// Stripe Checkout session via the platform billing API using the service role.
+// Guest checkout. Creates a provisional account for the guest's email (random
+// password, unverified), a pending enrollment owned by it, and a Stripe
+// Checkout session purchased with that account's JWT (the billing API requires
+// an end-user purchaser). The buyer gains access to the account afterwards via
+// a magic-link email code on checkout-success.html; until then nobody holds
+// usable credentials for it. Existing emails are rejected with EMAIL_EXISTS so
+// the frontend can route to login (which uses enroll-guard instead).
 // HTTP trigger: auth "none" (public). Pricing is computed server-side from the
 // database; client-sent prices are never trusted.
 export async function handler(req, ctx) {
@@ -60,31 +65,66 @@ export async function handler(req, ctx) {
   const discountAmount = isEarlyBird ? Math.round((subtotal * ebPct) / 100) : 0;
   const total = subtotal - discountAmount;
 
-  // 4. Unclaimed pending enrollment
+  const apiBase = ctx.env.BUTTERBASE_API_URL || "https://api.butterbase.ai";
+  const appId = ctx.env.BUTTERBASE_APP_ID;
+  const siteUrl = ctx.env.SITE_URL || "https://olivistart.com";
+
+  // 4. Provisional account for the guest (random password nobody knows;
+  //    the buyer signs in later with a magic-link code)
+  const password = randomPassword();
+  const signupRes = await fetch(`${apiBase}/auth/${appId}/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: student_email, password, display_name: student_name }),
+  });
+  const signupData = await signupRes.json();
+  if (!signupRes.ok) {
+    const msg = String(signupData.error || signupData.message || "");
+    if (/already exists|already registered/i.test(msg)) {
+      return json({
+        error: "An account with this email already exists. Please log in to enroll.",
+        code: "EMAIL_EXISTS",
+      }, 409);
+    }
+    console.error("Failed to create guest account:", msg);
+    return json({ error: "Could not start checkout. Please try again." }, 502);
+  }
+  const guestUser = signupData.user;
+
+  // 5. Sign in as the provisional account (billing purchases require an
+  //    end-user JWT; service keys and impersonation are not accepted there)
+  const loginRes = await fetch(`${apiBase}/auth/${appId}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: student_email, password }),
+  });
+  const loginData = await loginRes.json();
+  if (!loginRes.ok) {
+    console.error("Failed to sign in guest account:", loginData.error || loginData.message);
+    return json({ error: "Could not start checkout. Please try again." }, 502);
+  }
+  const guestToken = loginData.access_token;
+
+  // 6. Pending enrollment owned by the provisional account
   const enrollRes = await ctx.db.query(
     `INSERT INTO enrollments (schedule_id, user_id, student_name, student_email, student_phone,
                               status, num_classes_enrolled, price_per_class_cents, discount_pct, total_paid_cents)
-     VALUES ($1, NULL, $2, $3, $4, 'pending', $5, $6, $7, $8)
+     VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)
      RETURNING id`,
-    [schedule_id, student_name, student_email, student_phone,
+    [schedule_id, guestUser.id, student_name, student_email, student_phone,
      numClasses, perClass, isEarlyBird ? ebPct : 0, total]
   );
   const enrollmentId = enrollRes.rows[0].id;
 
-  const apiBase = ctx.env.BUTTERBASE_API_URL || "https://api.butterbase.ai";
-  const appId = ctx.env.BUTTERBASE_APP_ID;
-  const siteUrl = ctx.env.SITE_URL || "https://olivistart.com";
-  const serviceHeaders = {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${ctx.env.SERVICE_KEY}`,
-  };
-
-  // 5. Dynamically priced product
+  // 7. Dynamically priced product (service key)
   const productName = `${schedule.program_name} - ${numClasses} class${numClasses > 1 ? "es" : ""}` +
     (isEarlyBird ? ` (${ebPct}% early-bird)` : "");
   const productRes = await fetch(`${apiBase}/v1/${appId}/billing/products`, {
     method: "POST",
-    headers: serviceHeaders,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${ctx.env.SERVICE_KEY}`,
+    },
     body: JSON.stringify({
       name: productName,
       priceCents: total,
@@ -109,10 +149,10 @@ export async function handler(req, ctx) {
   }
   const product = await productRes.json();
 
-  // 6. Checkout session (service role; the buyer has no account yet)
+  // 8. Checkout session purchased as the provisional account
   const purchaseRes = await fetch(`${apiBase}/v1/${appId}/billing/purchase`, {
     method: "POST",
-    headers: serviceHeaders,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${guestToken}` },
     body: JSON.stringify({
       productId: product.id,
       successUrl: `${siteUrl}/checkout-success.html?enrollment=${enrollmentId}`,
@@ -138,6 +178,12 @@ export async function handler(req, ctx) {
     checkout_url: purchase.url,
     total_cents: total,
   }, 200);
+}
+
+function randomPassword() {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  const base = btoa(String.fromCharCode(...bytes)).replace(/[+/=]/g, "");
+  return `Aa1!${base}`;
 }
 
 function json(obj, status) {

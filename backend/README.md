@@ -29,12 +29,16 @@ never commit it or ship it to the frontend.
 - Logged-in: `enroll-guard` (auth required) creates a pending enrollment for
   the user and a Stripe Checkout session; success returns to
   `registration.html`.
-- Guest: `guest-enroll` (public) creates an unclaimed pending enrollment
-  (`user_id NULL`); success returns to `checkout-success.html`, where a
-  magic-link code signs the buyer in and `claim-enrollments` attaches the
-  enrollment by verified email match.
-- Fulfillment happens only in `stripe-webhook`, which re-verifies the order
-  status against the billing API before confirming (public endpoint, payload
-  untrusted) and is idempotent across duplicate deliveries.
+- Guest: `guest-enroll` (public) creates a provisional account for the email
+  (random password, never stored; billing purchases require an end-user JWT,
+  which is why the account exists at checkout time), an enrollment owned by
+  it, and a checkout session. Existing emails get 409 `EMAIL_EXISTS` and the
+  frontend routes to login. On `checkout-success.html` a magic-link code signs
+  the buyer into that account; `claim-enrollments` additionally attaches any
+  legacy `user_id NULL` rows matching the verified email after every login.
+- Fulfillment happens only in `stripe-webhook`, idempotent across duplicate
+  deliveries. The payload cannot be re-verified (billing order reads are
+  user-scoped; no delivery signature), so order ids are treated as secrets
+  and never returned to clients.
 - Capacity counts `confirmed` plus `pending` holds younger than 60 minutes,
   in `guest-enroll`, `enroll-guard`, and `class-availability`.
