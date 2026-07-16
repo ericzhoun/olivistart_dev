@@ -52,7 +52,7 @@ function addMinutes(time, minutes) {
 }
 
 function scheduleForm(values, programs, semesters, title, isEditing = false) {
-  const selectedDays = isEditing ? [values.day_of_week] : [];
+  const selectedDays = isEditing ? (values.days || [values.day_of_week]) : [];
   const sessionType = sessionTypeFor(values);
   const priceDollars = values.price_cents != null ? (values.price_cents / 100).toFixed(2) : (SESSION_TYPES[sessionType].minutes / 60 * HOURLY_RATE).toFixed(2);
   return `<form id="record-form" class="admin-form">
@@ -85,17 +85,36 @@ async function crud(id) {
     if (key === "price_cents") return formatPrice(item[key]);
     return item[key] ?? (key === "active" ? "✓" : "-");
   };
-  app.innerHTML = `<div class="admin-crud-header"><h1>${c.title}</h1>${button(`+ New ${c.title.slice(0,-1)}`, "new-record")}</div><div id="form-slot"></div>${table(c.labels.concat("Actions"), items.map((item) => `<tr>${c.cols.map((key) => `<td>${esc(displayValue(item, key))}</td>`).join("")}<td>${button("Edit", `edit:${item.id}`)} ${button("Delete", `delete:${item.id}`, "btn btn-sm btn-danger")}</td></tr>`).join(""))}`;
+  const dayOrder = Object.fromEntries(DAYS.map((day, index) => [day, index]));
+  const scheduleGroups = id === "schedules" ? Object.values(items.reduce((groups, item) => {
+    const key = JSON.stringify([item.program_id, item.semester_id, item.session_type || sessionTypeFor(item), item.start_time, item.end_time, item.age_group, item.price_cents, item.max_seats, item.early_bird_discount_pct, item.early_bird_deadline, item.notes, item.active]);
+    if (!groups[key]) groups[key] = { item, members: [] };
+    groups[key].members.push(item);
+    return groups;
+  }, {})).map((group) => ({ ...group, days: group.members.map((item) => item.day_of_week).sort((a, b) => dayOrder[a] - dayOrder[b]) })) : [];
+  const tableRows = id === "schedules"
+    ? scheduleGroups.map((group) => `<tr>${c.cols.map((key) => `<td>${esc(key === "day_of_week" ? group.days.join(", ") : displayValue(group.item, key))}</td>`).join("")}<td>${button("Edit", `edit-group:${group.members.map((item) => item.id).join(",")}`)} ${button("Delete", `delete-group:${group.members.map((item) => item.id).join(",")}`, "btn btn-sm btn-danger")}</td></tr>`).join("")
+    : items.map((item) => `<tr>${c.cols.map((key) => `<td>${esc(displayValue(item, key))}</td>`).join("")}<td>${button("Edit", `edit:${item.id}`)} ${button("Delete", `delete:${item.id}`, "btn btn-sm btn-danger")}</td></tr>`).join("");
+  app.innerHTML = `<div class="admin-crud-header"><h1>${c.title}</h1>${button(`+ New ${c.title.slice(0,-1)}`, "new-record")}</div><div id="form-slot"></div>${table(c.labels.concat("Actions"), tableRows)}`;
   app.addEventListener("click", crudActions, { once: true });
   async function crudActions(e) {
     const action = e.target.dataset.action || "";
     if (action === "new-record") {
       document.querySelector("#form-slot").innerHTML = id === "schedules" ? scheduleForm({}, programs, semesters, "New Class Schedules") : form(c.fields, {}, `New ${c.title.slice(0,-1)}`);
       bindForm();
+    } else if (action.startsWith("edit-group:")) {
+      const ids = action.slice("edit-group:".length).split(",");
+      const group = scheduleGroups.find((candidate) => candidate.members.every((item) => ids.includes(item.id)) && candidate.members.length === ids.length);
+      document.querySelector("#form-slot").innerHTML = scheduleForm({ ...group.item, days: group.days }, programs, semesters, "Edit Class Schedules", true);
+      bindForm(group.members);
     } else if (action.startsWith("edit:")) {
       const item = items.find((x) => String(x.id) === action.slice(5));
       document.querySelector("#form-slot").innerHTML = id === "schedules" ? scheduleForm(item, programs, semesters, "Edit Class Schedule", true) : form(c.fields, item, `Edit ${c.title.slice(0,-1)}`);
       bindForm(item.id);
+    } else if (action.startsWith("delete-group:") && confirm("Delete these class schedules?")) {
+      const ids = action.slice("delete-group:".length).split(",");
+      await Promise.all(ids.map((scheduleId) => adminApi(`class_schedules/${scheduleId}`, { method: "DELETE" })));
+      render();
     } else if (action.startsWith("delete:") && confirm(`Delete this ${c.title.slice(0,-1).toLowerCase()}?`)) {
       await adminApi(`${id === "schedules" ? "class_schedules" : id}/${action.slice(7)}`, { method: "DELETE" });
       render();
@@ -128,8 +147,22 @@ async function crud(id) {
         body.price_cents = Math.round(Number(body.price_dollars) * 100);
         delete body.price_dollars;
         body.early_bird_deadline = body.early_bird_deadline || null;
-        if (editId) await adminApi(`class_schedules/${editId}`, { method: "PATCH", body: { ...body, day_of_week: days[0] } });
-        else await Promise.all(days.map((day_of_week) => adminApi("class_schedules", { method: "POST", body: { ...body, day_of_week } })));
+        const existingSchedules = Array.isArray(editId) ? editId : [];
+        if (existingSchedules.length) {
+          const existingByDay = new Map(existingSchedules.map((schedule) => [schedule.day_of_week, schedule]));
+          const selectedDays = new Set(days);
+          await Promise.all([
+            ...existingSchedules.filter((schedule) => !selectedDays.has(schedule.day_of_week)).map((schedule) => adminApi(`class_schedules/${schedule.id}`, { method: "DELETE" })),
+            ...days.map((day_of_week) => {
+              const existing = existingByDay.get(day_of_week);
+              return existing
+                ? adminApi(`class_schedules/${existing.id}`, { method: "PATCH", body: { ...body, day_of_week } })
+                : adminApi("class_schedules", { method: "POST", body: { ...body, day_of_week } });
+            }),
+          ]);
+        } else {
+          await Promise.all(days.map((day_of_week) => adminApi("class_schedules", { method: "POST", body: { ...body, day_of_week } })));
+        }
       } else {
         await adminApi(`${id}${editId ? `/${editId}` : ""}`, { method: editId ? "PATCH" : "POST", body });
       }
