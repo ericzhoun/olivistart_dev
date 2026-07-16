@@ -88,6 +88,7 @@ img, svg {
 .admin-sidebar-footer .btn { color: #2b2b2b; background: #fff; }
 .admin-content { flex: 1; min-width: 0; padding: 52px clamp(24px, 5vw, 72px); }
 .admin-content h1 { font-size: clamp(2rem, 3vw, 3rem); }
+.admin-notice { background: #dcefdc; border: 1px solid #a9cfaa; border-radius: 8px; color: #285b2d; font-weight: 600; margin: 0 0 22px; padding: 11px 14px; }
 .stat-grid, .quick-link-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 28px 0 52px; }
 .stat-card, .quick-link { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 24px; text-decoration: none; box-shadow: 0 8px 24px rgba(43,43,43,.04); }
 .stat-card:hover, .quick-link:hover { transform: translateY(-2px); }

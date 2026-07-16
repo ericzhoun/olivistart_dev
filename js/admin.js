@@ -6,10 +6,18 @@ const nav = [
   ["schedules", "Schedules"], ["sessions", "Sessions"], ["enrollments", "Enrollments"], ["students", "Students"],
 ];
 const app = document.querySelector("#admin-app");
+let notification = "";
 const esc = (v = "") => String(v).replace(/[&<>\"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[c]));
 const date = (v) => v ? new Date(v).toLocaleDateString() : "-";
 const query = () => location.hash.slice(1) || "dashboard";
 const button = (label, action = "", cls = "btn btn-sm") => `<button class="${cls}" data-action="${action}">${label}</button>`;
+
+function notify(message) { notification = message; }
+function renderNotification() {
+  if (!notification) return;
+  app.insertAdjacentHTML("afterbegin", `<p class="admin-notice" role="status">✓ ${esc(notification)}</p>`);
+  notification = "";
+}
 
 function guard() {
   if (!isAdmin()) { location.href = `login.html?next=${encodeURIComponent("admin.html")}`; return false; }
@@ -17,7 +25,13 @@ function guard() {
 }
 function renderNav() { document.querySelector("#admin-nav").innerHTML = nav.map(([id, label]) => `<a href="#${id}" class="${query() === id ? "active" : ""}">${label}</a>`).join(""); }
 function table(headers, rows) { return `<div class="admin-table-wrapper"><table class="admin-table"><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows || `<tr><td colspan="${headers.length}" class="muted">No records found.</td></tr>`}</tbody></table></div>`; }
-function form(fields, values = {}, title = "Edit record") { return `<form id="record-form" class="admin-form"><h3>${title}</h3>${fields.map(([key, label, type = "text", extra = ""]) => `<label>${label}<${type === "textarea" ? "textarea" : "input"} name="${key}" type="${type}" value="${esc(values[key] ?? "")}" ${extra}>${type === "textarea" ? esc(values[key] ?? "") : ""}</${type === "textarea" ? "textarea" : "input"}></label>`).join("")}<div class="form-actions"><button class="btn btn-sm">Save</button>${button("Cancel", "cancel-form", "btn btn-sm btn-secondary")}</div></form>`; }
+function form(fields, values = {}, title = "Edit record") {
+  const inputValue = (key, type) => {
+    const value = values[key] ?? "";
+    return type === "date" && value ? String(value).slice(0, 10) : value;
+  };
+  return `<form id="record-form" class="admin-form"><h3>${title}</h3>${fields.map(([key, label, type = "text", extra = ""]) => `<label>${label}<${type === "textarea" ? "textarea" : "input"} name="${key}" type="${type}" value="${esc(inputValue(key, type))}" ${extra}>${type === "textarea" ? esc(values[key] ?? "") : ""}</${type === "textarea" ? "textarea" : "input"}></label>`).join("")}<div class="form-actions"><button class="btn btn-sm">Save</button><button type="button" class="btn btn-sm btn-secondary" data-action="cancel-form">Cancel</button></div></form>`;
+}
 
 async function dashboard() {
   const [programs, schedules, enrollments] = await Promise.all([adminApi("programs?select=id"), adminApi("class_schedules?select=id"), adminApi("enrollments?select=id")]);
@@ -66,7 +80,7 @@ function scheduleForm(values, programs, semesters, title, isEditing = false) {
     <div class="form-row"><label>Price per class ($)<input name="price_dollars" id="price-dollars" type="number" min="0" step="0.01" required value="${esc(priceDollars)}"><span class="hint">Calculated at $35/hour. You can adjust it if needed.</span></label><label>Early-bird discount %<input name="early_bird_discount_pct" type="number" min="0" max="100" value="${esc(values.early_bird_discount_pct || 0)}"></label></div>
     <label>Early-bird deadline<input name="early_bird_deadline" type="date" value="${esc(values.early_bird_deadline ? values.early_bird_deadline.slice(0, 10) : "")}"></label>
     <label>Notes<textarea name="notes">${esc(values.notes || "")}</textarea></label>
-    <div class="form-actions"><button class="btn btn-sm">${isEditing ? "Update" : "Create schedules"}</button>${button("Cancel", "cancel-form", "btn btn-sm btn-secondary")}</div>
+    <div class="form-actions"><button class="btn btn-sm">${isEditing ? "Update" : "Create schedules"}</button><button type="button" class="btn btn-sm btn-secondary" data-action="cancel-form">Cancel</button></div>
   </form>`;
 }
 
@@ -121,6 +135,7 @@ async function crud(id) {
     }
   }
   function bindForm(editId) {
+    document.querySelector('[data-action="cancel-form"]').addEventListener("click", () => render());
     if (id === "schedules") {
       const sessionType = document.querySelector("#session-type");
       const startTime = document.querySelector("#start-time");
@@ -166,6 +181,7 @@ async function crud(id) {
       } else {
         await adminApi(`${id}${editId ? `/${editId}` : ""}`, { method: editId ? "PATCH" : "POST", body });
       }
+      notify(editId ? `${c.title.slice(0, -1)} saved.` : `${c.title.slice(0, -1)} created.`);
       render();
     });
   }
@@ -225,5 +241,5 @@ async function attendance(sessionId) {
     }
   }, { once: true });
 }
-async function render() { if (!guard()) return; renderNav(); try { const id = query(); if (id === "dashboard") await dashboard(); else if (configs[id]) await crud(id); else if (id === "enrollments") await enrollments(); else if (id === "students") await students(); else if (id === "sessions") await sessions(); else app.innerHTML = `<h1>${id[0].toUpperCase() + id.slice(1)}</h1><p class="muted">Section unavailable.</p>`; } catch (err) { app.innerHTML = `<p class="auth-error">${esc(err.message)}</p>`; } }
+async function render() { if (!guard()) return; renderNav(); try { const id = query(); if (id === "dashboard") await dashboard(); else if (configs[id]) await crud(id); else if (id === "enrollments") await enrollments(); else if (id === "students") await students(); else if (id === "sessions") await sessions(); else app.innerHTML = `<h1>${id[0].toUpperCase() + id.slice(1)}</h1><p class="muted">Section unavailable.</p>`; renderNotification(); } catch (err) { app.innerHTML = `<p class="auth-error">${esc(err.message)}</p>`; } }
 window.addEventListener("hashchange", render); document.querySelector("#admin-logout").addEventListener("click", async () => { await logout(); location.href = "index.html"; }); render();
