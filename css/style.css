@@ -469,6 +469,16 @@ img, svg {
   text-align: center;
 }
 
+.schedule-enroll-banner {
+  background: #fff3cd;
+  border: 1px solid #e4c766;
+  border-radius: 8px;
+  color: #6b4f00;
+  margin: 18px auto 0;
+  max-width: 520px;
+  padding: 12px 16px;
+}
+
 .program-section {
   padding: 60px 0;
   border-bottom: 1px solid var(--color-border);
