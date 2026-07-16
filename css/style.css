@@ -341,14 +341,44 @@ img, svg {
 }
 
 @media (max-width: 720px) {
+  .hero-banner {
+    min-height: 220px;
+    overflow: hidden;
+    background: #e5e2dd;
+  }
+
+  .hero-banner img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    object-position: right center;
+  }
+
   .hero-overlay {
-    position: relative;
-    top: auto;
-    left: auto;
-    transform: none;
-    max-width: 100%;
-    text-align: center;
-    padding: 40px 24px 60px;
+    top: 50%;
+    left: 50%;
+    width: 50%;
+    max-width: none;
+    transform: translateY(-50%);
+    text-align: left;
+    padding: 12px 16px;
+  }
+
+  .hero-overlay h1 {
+    font-size: clamp(1.35rem, 7vw, 2rem);
+    line-height: 1.05;
+    margin-bottom: 6px;
+  }
+
+  .hero-overlay .tagline {
+    font-size: clamp(0.7rem, 3.2vw, 0.95rem);
+    line-height: 1.25;
+    margin-bottom: 10px;
+  }
+
+  .hero-overlay .btn {
+    padding: 8px 14px;
+    font-size: 0.75rem;
   }
 }
 
