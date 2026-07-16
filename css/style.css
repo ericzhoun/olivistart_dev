@@ -276,8 +276,9 @@ img, svg {
 .hero-overlay {
   position: absolute;
   top: 50%;
-  left: 6%;
+  left: 50%;
   transform: translateY(-50%);
+  width: 45%;
   max-width: 45%;
   text-align: left;
   padding: 0 24px;
