@@ -5,7 +5,8 @@ import { isLoggedIn, getUser, isAdmin, logout, getToken, refreshToken, requireAu
 
 // Require login — redirect to login.html if not authenticated.
 const user = requireAuth();
-if (!user) throw new Error("redirecting to login");
+
+if (user) {
 
 const paymentStatus = getQueryParam("payment");
 const registrationStatus = getQueryParam("registration");
@@ -452,3 +453,4 @@ async function loadData() {
 }
 
 loadData();
+}
