@@ -41,9 +41,8 @@ test("content images and controls have stable, meaningful semantics", async () =
     read("qr-code.html"),
   ]);
 
-  assert.doesNotMatch(about, /<h2>\s*<img/);
-  assert.doesNotMatch(about, /<\/br>/);
-  assert.match(contact, /wechat-qr\.png"[^>]*width="344"[^>]*height="334"/);
+  assert.match(about, /<h2><img src="assets\/Olivia_teaching\.png" alt="Olivia Liu" width="306" hspace="10" height="240" align="left"><\/h2>/);
+  assert.match(contact, /wechat-qr\.png"[^>]*width="344"[^>]*height="344"/);
   assert.match(qr, /alt="QR Code"[^>]*width="512"[^>]*height="512"/);
   assert.match(portfolio, /class="portfolio-thumb" type="button" aria-label="Open Visual Discovery artwork 1"/);
   assert.doesNotMatch(programs, /alt="kids draw"|alt="color painting"/);

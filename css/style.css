@@ -810,8 +810,11 @@ a, button, input, select, textarea {
 }
 
 .qr-code {
+  aspect-ratio: 1;
+  height: 200px;
   max-width: 200px;
   margin: 12px auto;
+  object-fit: cover;
   border: 1px solid var(--color-border);
   border-radius: 8px;
 }
