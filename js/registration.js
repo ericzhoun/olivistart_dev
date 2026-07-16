@@ -1,6 +1,6 @@
 // Registration form — post-payment student info + agreement.
 // Ported from herfield app/account/registration/[enrollmentId]/RegistrationFormClient.js.
-import { apiGet, adminApi, formatPrice, formatTime, getQueryParam } from "./api.js";
+import { apiGet, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
 import { isLoggedIn, getUser, getToken, requireAuth } from "./auth.js";
 
 const enrollmentId = getQueryParam("enrollment");
@@ -231,21 +231,16 @@ async function handleSubmit(e) {
   state.submitting = true;
   render();
   try {
-    await adminApi(`enrollments/${enrollmentId}`, {
-      method: "PATCH",
-      body: {
-        child_name: state.form.child_name,
-        child_age: state.form.child_age,
-        child_dob: state.form.child_dob,
-        parent_name: state.form.parent_name,
-        emergency_contact: state.form.emergency_contact,
-        allergies: state.form.allergies,
-        referred_by: state.form.referred_by,
-        agreement_signed: true,
-        agreement_date: new Date().toISOString(),
-        registration_complete: true,
-      },
-    });
+    await callFunction("complete-registration", {
+      enrollment_id: enrollmentId,
+      child_name: state.form.child_name,
+      child_age: state.form.child_age,
+      child_dob: state.form.child_dob,
+      parent_name: state.form.parent_name,
+      emergency_contact: state.form.emergency_contact,
+      allergies: state.form.allergies,
+      referred_by: state.form.referred_by,
+    }, getToken());
     window.location.href = "account.html?registration=complete";
   } catch (err) {
     state.error = err.message;

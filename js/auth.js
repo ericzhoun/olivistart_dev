@@ -1,6 +1,6 @@
-// Auth helpers — email/password auth against the Butterbase backend,
-// tokens cached in localStorage. Ported from herfield app/lib/auth.js.
-import { AUTH_BASE } from "./api.js";
+// Auth helpers — email/password and magic-link auth against the Butterbase
+// backend, tokens cached in localStorage. Ported from herfield app/lib/auth.js.
+import { AUTH_BASE, API_BASE } from "./api.js";
 
 const TOKEN_KEY = "olivistart_access_token";
 const REFRESH_KEY = "olivistart_refresh_token";
@@ -64,6 +64,60 @@ export async function signup(email, password, displayName) {
   // After signup, login to get tokens (verification email is sent automatically)
   await login(email, password);
   return getUser();
+}
+
+/** Email a 6-digit sign-in code (works for new and existing accounts). */
+export async function sendMagicLink(email) {
+  const res = await fetch(`${AUTH_BASE}/magic-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || data.message || "Could not send code");
+  return data;
+}
+
+/**
+ * Exchange a 6-digit code for tokens. Creates the account on first use,
+ * signs into the existing account otherwise. Stores tokens like login().
+ */
+export async function verifyMagicLink(email, code) {
+  const res = await fetch(`${AUTH_BASE}/magic-link/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || data.message || "Invalid code");
+  localStorage.setItem(TOKEN_KEY, data.access_token);
+  localStorage.setItem(REFRESH_KEY, data.refresh_token);
+  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+  return data.user;
+}
+
+/**
+ * Attach any unclaimed enrollments matching the logged-in user's verified
+ * email. Best-effort: returns claimed ids, or [] on any failure.
+ */
+export async function claimEnrollments() {
+  const token = getToken();
+  if (!token) return [];
+  try {
+    const res = await fetch(`${API_BASE}/fn/claim-enrollments`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: "{}",
+    });
+    const data = await res.json();
+    if (!res.ok) return [];
+    return data.claimed || [];
+  } catch {
+    return [];
+  }
 }
 
 /** Logout — revokes tokens and clears localStorage */

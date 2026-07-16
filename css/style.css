@@ -1004,6 +1004,38 @@ img, svg {
   border-radius: 6px;
 }
 
+.auth-info {
+  background: #eef6ee;
+  border: 1px solid #5a8a4a;
+  color: #3d6b2e;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+}
+
+.code-input {
+  letter-spacing: 0.4em;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.enroll-guest-note {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.enroll-guest-note a {
+  color: var(--color-visual-discovery);
+}
+
 .auth-switch {
   text-align: center;
   margin-top: 1.5rem;

@@ -15,6 +15,7 @@ const state = {
   error: "",
   enrolling: false,
   studentName: "",
+  studentEmail: "",
   studentPhone: "",
   numClasses: 8,
 };
@@ -182,23 +183,26 @@ function render() {
     browse.href = "schedule.html";
     full.appendChild(browse);
     root.appendChild(full);
-  } else if (!state.user) {
-    const prompt = el("div", "enroll-auth-prompt");
-    prompt.appendChild(el("h4", "", "Please log in to enroll"));
-    prompt.appendChild(el("p", "", "You need an account to enroll and make payment."));
-    const btns = el("div", "enroll-auth-buttons");
-    const login = el("a", "btn", "Log In");
-    const next = encodeURIComponent(`enroll.html?schedule=${scheduleId}`);
-    login.href = `login.html?next=${next}`;
-    btns.appendChild(login);
-    const signup = el("a", "btn", "Sign Up");
-    signup.href = `signup.html?next=${next}`;
-    btns.appendChild(signup);
-    prompt.appendChild(btns);
-    root.appendChild(prompt);
   } else {
     const form = el("form", "enroll-form");
     form.onsubmit = handleEnroll;
+
+    if (!state.user) {
+      form.appendChild(el("p", "muted enroll-guest-note",
+        "No account needed — pay now and create your account afterwards. " +
+        "Already have one? <a href=\"login.html?next=" +
+        encodeURIComponent(`enroll.html?schedule=${scheduleId}`) + "\">Log in</a>."));
+
+      const lblEmail = el("label", "", "Email");
+      const inpEmail = document.createElement("input");
+      inpEmail.type = "email";
+      inpEmail.value = state.studentEmail;
+      inpEmail.required = true;
+      inpEmail.placeholder = "you@example.com";
+      inpEmail.oninput = (e) => (state.studentEmail = e.target.value);
+      lblEmail.appendChild(inpEmail);
+      form.appendChild(lblEmail);
+    }
 
     const lblName = el("label", "", "Student Name");
     const inpName = document.createElement("input");
@@ -240,17 +244,6 @@ async function handleEnroll(e) {
   e.preventDefault();
   state.error = "";
   const schedule = state.schedule;
-  const program = state.program;
-  const pricePerClass = schedule ? schedule.price_cents : 0;
-  const earlyBirdPct = schedule
-    ? schedule.early_bird_discount_pct || program?.early_bird_discount_pct || 0
-    : 0;
-  const earlyBirdDeadlineRaw = schedule?.early_bird_deadline || program?.early_bird_deadline;
-  const earlyBirdDeadline = earlyBirdDeadlineRaw ? new Date(earlyBirdDeadlineRaw) : null;
-  const isEarlyBird = earlyBirdPct > 0 && (!earlyBirdDeadline || new Date() <= earlyBirdDeadline);
-  const subtotal = pricePerClass * state.numClasses;
-  const discountAmount = isEarlyBird ? Math.round((subtotal * earlyBirdPct) / 100) : 0;
-  const totalDue = subtotal - discountAmount;
   const maxSeats = schedule ? schedule.max_seats : 0;
 
   if (maxSeats - state.enrollmentCount <= 0) {
@@ -259,24 +252,40 @@ async function handleEnroll(e) {
     return;
   }
 
+  if (!state.user && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.studentEmail.trim())) {
+    state.error = "Please enter a valid email address.";
+    render();
+    return;
+  }
+
   state.enrolling = true;
   render();
   try {
-    const token = getToken();
-    const result = await callFunction(
-      "enroll-guard",
-      {
+    let result;
+    if (state.user) {
+      result = await callFunction(
+        "enroll-guard",
+        {
+          schedule_id: scheduleId,
+          student_name: state.studentName,
+          student_email: state.user.email || "",
+          student_phone: state.studentPhone,
+          num_classes_enrolled: state.numClasses,
+        },
+        getToken()
+      );
+    } else {
+      const email = state.studentEmail.trim().toLowerCase();
+      result = await callFunction("guest-enroll", {
         schedule_id: scheduleId,
         student_name: state.studentName,
-        student_email: state.user?.email || "",
+        student_email: email,
         student_phone: state.studentPhone,
         num_classes_enrolled: state.numClasses,
-        price_per_class_cents: pricePerClass,
-        discount_pct: isEarlyBird ? earlyBirdPct : 0,
-        total_paid_cents: totalDue,
-      },
-      token
-    );
+      });
+      // Prefill the claim step on the post-payment page (never in the URL).
+      try { sessionStorage.setItem("olivistart_pending_email", email); } catch { /* private mode */ }
+    }
     window.location.href = result.checkout_url;
   } catch (err) {
     state.error = err.message;
@@ -309,12 +318,11 @@ async function init() {
       state.numClasses = prog[0].num_classes || 8;
     }
 
-    // Enrollment count (confirmed + pending) for capacity display
+    // Seat availability (confirmed + fresh pending holds). Anonymous REST
+    // reads of enrollments are blocked by RLS, so ask the public function.
     try {
-      const counts = await apiGet(
-        `enrollments?schedule_id=eq.${scheduleId}&status=in.(pending,confirmed)&select=id`
-      );
-      state.enrollmentCount = counts.length;
+      const avail = await callFunction("class-availability", { schedule_id: scheduleId });
+      state.enrollmentCount = avail.spots_taken;
     } catch {
       state.enrollmentCount = 0;
     }

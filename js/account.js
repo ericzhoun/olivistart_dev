@@ -1,7 +1,7 @@
 // Account page — enrollments, credits, upcoming classes, make-up booking.
 // Ported from herfield app/account/AccountPageClient.js, compiled to vanilla JS.
 import { apiGet, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
-import { isLoggedIn, getUser, logout, getToken, requireAuth } from "./auth.js";
+import { isLoggedIn, getUser, logout, getToken, requireAuth, claimEnrollments } from "./auth.js";
 
 // Require login — redirect to login.html if not authenticated.
 const user = requireAuth();
@@ -323,13 +323,13 @@ function showActionError(msg) {
 }
 
 async function loadMakeupSessions(enrollment) {
-  state.showMakeup[en.id] = { loading: true, sessions: [] };
+  state.showMakeup[enrollment.id] = { loading: true, sessions: [] };
   render();
   try {
     const token = getToken();
     const sched = state.schedules.find((s) => s.id === enrollment.schedule_id);
     if (!sched) {
-      state.showMakeup[en.id] = { loading: false, sessions: [] };
+      state.showMakeup[enrollment.id] = { loading: false, sessions: [] };
       render();
       return;
     }
@@ -367,9 +367,9 @@ async function loadMakeupSessions(enrollment) {
       })
     );
 
-    state.showMakeup[en.id] = { loading: false, sessions: withCapacity.filter((s) => s.available > 0) };
+    state.showMakeup[enrollment.id] = { loading: false, sessions: withCapacity.filter((s) => s.available > 0) };
   } catch (err) {
-    state.showMakeup[en.id] = { loading: false, sessions: [] };
+    state.showMakeup[enrollment.id] = { loading: false, sessions: [] };
     showActionError(err.message);
   }
   render();
@@ -381,6 +381,8 @@ async function loadData() {
   state.error = "";
   render();
   try {
+    // Attach any unclaimed guest enrollments for this email (best-effort).
+    await claimEnrollments();
     const token = getToken();
     const [ens, bks] = await Promise.all([
       apiGet("enrollments?order=created_at.desc", token),
