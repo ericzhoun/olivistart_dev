@@ -1,7 +1,7 @@
 // Login page logic - password or magic-link code. After any successful
 // login, unclaimed enrollments matching the verified email attach to the
 // account (guest-checkout recovery path).
-import { login, isLoggedIn, sendMagicLink, verifyMagicLink, claimEnrollments } from "./auth.js";
+import { login, isLoggedIn, sendMagicLink, verifyMagicLink, claimEnrollments, refreshToken } from "./auth.js";
 import { getQueryParam } from "./api.js";
 
 const errEl = document.getElementById("auth-error");
@@ -17,11 +17,21 @@ const modeToggle = document.getElementById("mode-toggle");
 // mode: "password" | "magic-send" | "magic-verify"
 let mode = "password";
 
-// Already logged in? Bounce to the return target (or account).
-if (isLoggedIn()) {
-  const next = getQueryParam("next");
-  window.location.href = next || "account.html";
+// Redirect only after confirming the saved session can be refreshed. An old
+// access token by itself must not bounce a visitor away from the login form.
+async function redirectIfSessionIsValid() {
+  if (!isLoggedIn()) return;
+  try {
+    const token = await refreshToken();
+    if (!token) return;
+    const next = getQueryParam("next");
+    window.location.href = next || "account.html";
+  } catch {
+    // Keep the login form available when the refresh endpoint is unavailable.
+  }
 }
+
+void redirectIfSessionIsValid();
 
 function setMode(next) {
   mode = next;

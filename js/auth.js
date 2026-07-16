@@ -6,6 +6,12 @@ const TOKEN_KEY = "olivistart_access_token";
 const REFRESH_KEY = "olivistart_refresh_token";
 const USER_KEY = "olivistart_user";
 
+function clearStoredAuth() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(REFRESH_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+
 /** Get stored access token */
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -133,15 +139,16 @@ export async function logout() {
       // ignore — clear local state regardless
     }
   }
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
-  localStorage.removeItem(USER_KEY);
+  clearStoredAuth();
 }
 
 /** Refresh the access token using the refresh token */
 export async function refreshToken() {
   const refresh = getRefreshToken();
-  if (!refresh) return null;
+  if (!refresh) {
+    clearStoredAuth();
+    return null;
+  }
   const res = await fetchWithTimeout(`${AUTH_BASE}/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -149,7 +156,7 @@ export async function refreshToken() {
   });
   const data = await res.json();
   if (!res.ok) {
-    await logout();
+    clearStoredAuth();
     return null;
   }
   localStorage.setItem(TOKEN_KEY, data.access_token);
