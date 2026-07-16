@@ -209,7 +209,23 @@ async function crud(id) {
     });
   }
 }
-async function enrollments() { const items = await adminApi("enrollments?order=created_at.desc"); app.innerHTML = `<div class="admin-crud-header"><h1>Enrollments</h1></div>${table(["Student","Email","Status","Date","Actions"], items.map((e) => `<tr><td>${esc(e.student_name)}</td><td>${esc(e.student_email)}</td><td><span class="status-badge status-${e.status}">${esc(e.status)}</span></td><td>${date(e.created_at)}</td><td>${e.status === "pending" ? button("Confirm", `confirm:${e.id}`) : ""} ${["pending","confirmed"].includes(e.status) ? button("Cancel", `cancel:${e.id}`, "btn btn-sm btn-danger") : ""}</td></tr>`).join(""))}`; app.addEventListener("click", async (e) => { const a = e.target.dataset.action || ""; if (a.startsWith("confirm:") || a.startsWith("cancel:")) { await adminApi(`enrollments/${a.slice(8)}`, { method: "PATCH", body: { status: a.startsWith("confirm:") ? "confirmed" : "cancelled" } }); render(); } }, { once: true }); }
+async function enrollments() {
+  const items = await adminApi("enrollments?order=created_at.desc");
+  const rows = items.map((enrollment) => {
+    const customerName = enrollment.parent_name || enrollment.customer_name || "Not provided";
+    return `<tr><td>${esc(enrollment.student_name)}</td><td>${esc(customerName)}</td><td>${esc(enrollment.student_email)}</td><td><span class="status-badge status-${enrollment.status}">${esc(enrollment.status)}</span></td><td>${date(enrollment.created_at)}</td><td>${enrollment.status === "pending" ? button("Confirm", `confirm:${enrollment.id}`) : ""} ${["pending", "confirmed"].includes(enrollment.status) ? button("Cancel", `cancel:${enrollment.id}`, "btn btn-sm btn-danger") : ""}</td></tr>`;
+  }).join("");
+  app.innerHTML = `<div class="admin-crud-header"><h1>Enrollments</h1></div>${table(["Student Name", "Customer Name", "Customer Email", "Status", "Date", "Actions"], rows)}`;
+  app.addEventListener("click", async (event) => {
+    const action = event.target.dataset.action || "";
+    if (!action.startsWith("confirm:") && !action.startsWith("cancel:")) return;
+    await adminApi(`enrollments/${action.slice(8)}`, {
+      method: "PATCH",
+      body: { status: action.startsWith("confirm:") ? "confirmed" : "cancelled" },
+    });
+    render();
+  }, { once: true });
+}
 async function students() { const items = await adminApi("enrollments?order=created_at.desc"); const map = new Map(); items.forEach((e) => { const key = e.student_email || e.student_name; const s = map.get(key) || { name: e.student_name, email: e.student_email, phone: e.student_phone, total: 0, confirmed: 0, pending: 0, last: e.created_at }; s.total++; if (e.status === "confirmed") s.confirmed++; if (e.status === "pending") s.pending++; map.set(key, s); }); app.innerHTML = `<h1>Students</h1>${table(["Name","Email","Phone","Total","Confirmed","Pending","Last Active"], [...map.values()].map((s) => `<tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.phone || "-")}</td><td>${s.total}</td><td>${s.confirmed}</td><td>${s.pending}</td><td>${date(s.last)}</td></tr>`).join(""))}`; }
 async function sessions() {
   const [items, schedules, programs] = await Promise.all([adminApi("class_sessions?order=class_date.asc&limit=200"), adminApi("class_schedules"), adminApi("programs")]);
