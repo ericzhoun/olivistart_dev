@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Deploy Butterbase serverless functions from backend/functions/.
+#
+# Usage:
+#   BUTTERBASE_API_KEY=bb_sk_... ./backend/deploy.sh [function-name ...]
+#
+# With no arguments, deploys every configured function. The service key is
+# read from the environment and must never be committed to this repo.
+set -euo pipefail
+
+APP_ID="app_48ul5eszfv7v"
+API_BASE="https://api.butterbase.ai"
+DIR="$(cd "$(dirname "$0")/functions" && pwd)"
+
+if [[ -z "${BUTTERBASE_API_KEY:-}" ]]; then
+  echo "error: set BUTTERBASE_API_KEY in the environment" >&2
+  exit 1
+fi
+
+# name|auth|path|impersonation|description
+CONFIGS=(
+  "guest-enroll|none|/guest-enroll|false|Guest checkout: unclaimed pending enrollment + Stripe Checkout session. Public endpoint; pricing computed server-side."
+  "claim-enrollments|required|/claim-enrollments|false|Attaches unclaimed enrollments to the caller by verified email match."
+  "complete-registration|required|/complete-registration|false|Saves the post-payment registration form for an enrollment the caller owns."
+  "class-availability|none|/class-availability|false|Public seat availability (confirmed + fresh pending holds) for a schedule."
+  "enroll-guard|required|/enroll|false|Logged-in enrollment with server-side pricing, dynamic product, and Stripe Checkout. Redirect URLs point to the static olivistart.com frontend."
+  "stripe-webhook|none|/stripe-webhook|false|Payment fulfillment: re-verifies order status via the billing API, then confirms enrollment and creates home bookings. Idempotent."
+)
+
+deploy_one() {
+  local name="$1" auth="$2" path="$3" impersonation="$4" desc="$5"
+  local file="$DIR/$name.js"
+  [[ -f "$file" ]] || { echo "error: $file not found" >&2; return 1; }
+
+  python3 - "$name" "$auth" "$path" "$impersonation" "$desc" "$file" <<'PY' > /tmp/bb-deploy-payload.json
+import json, sys
+name, auth, path, impersonation, desc, file = sys.argv[1:7]
+payload = {
+    "name": name,
+    "description": desc,
+    "code": open(file).read(),
+    "triggers": [{"type": "http", "config": {"auth": auth, "path": path, "method": "POST"}}],
+    "allow_service_key_impersonation": impersonation == "true",
+    "envVars": {"SITE_URL": "https://olivistart.com"},
+}
+json.dump(payload, sys.stdout)
+PY
+
+  local out
+  out=$(curl -sS -m 30 -X POST \
+    -H "Authorization: Bearer $BUTTERBASE_API_KEY" \
+    -H "Content-Type: application/json" \
+    --data @/tmp/bb-deploy-payload.json \
+    "$API_BASE/v1/$APP_ID/functions")
+  if echo "$out" | grep -q '"deployedAt"'; then
+    echo "deployed: $name"
+  else
+    echo "FAILED: $name" >&2
+    echo "$out" >&2
+    return 1
+  fi
+}
+
+selected=("$@")
+for cfg in "${CONFIGS[@]}"; do
+  IFS='|' read -r name auth path impersonation desc <<<"$cfg"
+  if [[ ${#selected[@]} -gt 0 ]]; then
+    match=false
+    for s in "${selected[@]}"; do [[ "$s" == "$name" ]] && match=true; done
+    $match || continue
+  fi
+  deploy_one "$name" "$auth" "$path" "$impersonation" "$desc"
+done
