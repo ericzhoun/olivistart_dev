@@ -88,8 +88,12 @@ function makeField(key, label, opts = {}) {
     input.readOnly = true;
     input.className = "readonly-input";
   } else {
-    input.value = value !== "" ? value : state.form[key] || "";
-    input.oninput = (e) => (state.form[key] = e.target.value);
+    const initial = value !== "" ? value : state.form[key] || "";
+    input.value = initial;
+    if (key) {
+      state.form[key] = initial;
+      input.oninput = (e) => (state.form[key] = e.target.value);
+    }
   }
   lbl.appendChild(input);
   return lbl;
@@ -187,7 +191,10 @@ function render() {
   const check = document.createElement("input");
   check.type = "checkbox";
   check.checked = state.agreed;
-  check.onchange = (e) => { state.agreed = e.target.checked; };
+  check.onchange = (e) => {
+    state.agreed = e.target.checked;
+    submit.disabled = state.submitting || !state.agreed;
+  };
   checkLbl.appendChild(check);
   checkLbl.appendChild(document.createTextNode(
     " I have read and agree to the terms and conditions above. This constitutes a binding agreement."));
