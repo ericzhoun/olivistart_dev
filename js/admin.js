@@ -30,7 +30,7 @@ function form(fields, values = {}, title = "Edit record") {
     const value = values[key] ?? "";
     return type === "date" && value ? String(value).slice(0, 10) : value;
   };
-  return `<form id="record-form" class="admin-form"><h3>${title}</h3>${fields.map(([key, label, type = "text", extra = ""]) => `<label>${label}<${type === "textarea" ? "textarea" : "input"} name="${key}" type="${type}" value="${esc(inputValue(key, type))}" ${extra}>${type === "textarea" ? esc(values[key] ?? "") : ""}</${type === "textarea" ? "textarea" : "input"}></label>`).join("")}<div class="form-actions"><button class="btn btn-sm">Save</button><button type="button" class="btn btn-sm btn-secondary" data-action="cancel-form">Cancel</button></div></form>`;
+  return `<form id="record-form" class="admin-form"><h3>${title}</h3><p class="auth-error" id="form-error" hidden></p>${fields.map(([key, label, type = "text", extra = ""]) => `<label>${label}<${type === "textarea" ? "textarea" : "input"} name="${key}" type="${type}" value="${esc(inputValue(key, type))}" ${extra}>${type === "textarea" ? esc(values[key] ?? "") : ""}</${type === "textarea" ? "textarea" : "input"}></label>`).join("")}<div class="form-actions"><button type="submit" class="btn btn-sm" data-save-button>Save</button><button type="button" class="btn btn-sm btn-secondary" data-action="cancel-form">Cancel</button></div></form>`;
 }
 
 async function dashboard() {
@@ -70,7 +70,7 @@ function scheduleForm(values, programs, semesters, title, isEditing = false) {
   const sessionType = sessionTypeFor(values);
   const priceDollars = values.price_cents != null ? (values.price_cents / 100).toFixed(2) : (SESSION_TYPES[sessionType].minutes / 60 * HOURLY_RATE).toFixed(2);
   return `<form id="record-form" class="admin-form">
-    <h3>${title}</h3>
+    <h3>${title}</h3><p class="auth-error" id="form-error" hidden></p>
     <label>Program<select name="program_id" required><option value="">Select a program</option>${programs.map((p) => `<option value="${esc(p.id)}" ${p.id === values.program_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
     <label>Semester<select name="semester_id" required><option value="">Select a semester</option>${semesters.map((s) => `<option value="${esc(s.id)}" ${s.id === values.semester_id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
     <fieldset class="day-picker"><legend>${isEditing ? "Day of week" : "Days of week"}</legend><p class="hint">${isEditing ? "Editing changes this schedule's day." : "A separate schedule will be created for each selected day."}</p><div>${DAYS.map((day) => `<label><input type="checkbox" name="days" value="${day}" ${selectedDays.includes(day) ? "checked" : ""}> ${day}</label>`).join("")}</div></fieldset>
@@ -80,7 +80,7 @@ function scheduleForm(values, programs, semesters, title, isEditing = false) {
     <div class="form-row"><label>Price per class ($)<input name="price_dollars" id="price-dollars" type="number" min="0" step="0.01" required value="${esc(priceDollars)}"><span class="hint">Calculated at $35/hour. You can adjust it if needed.</span></label><label>Early-bird discount %<input name="early_bird_discount_pct" type="number" min="0" max="100" value="${esc(values.early_bird_discount_pct || 0)}"></label></div>
     <label>Early-bird deadline<input name="early_bird_deadline" type="date" value="${esc(values.early_bird_deadline ? values.early_bird_deadline.slice(0, 10) : "")}"></label>
     <label>Notes<textarea name="notes">${esc(values.notes || "")}</textarea></label>
-    <div class="form-actions"><button class="btn btn-sm">${isEditing ? "Update" : "Create schedules"}</button><button type="button" class="btn btn-sm btn-secondary" data-action="cancel-form">Cancel</button></div>
+    <div class="form-actions"><button type="submit" class="btn btn-sm" data-save-button>${isEditing ? "Update" : "Create schedules"}</button><button type="button" class="btn btn-sm btn-secondary" data-action="cancel-form">Cancel</button></div>
   </form>`;
 }
 
@@ -135,6 +135,9 @@ async function crud(id) {
     }
   }
   function bindForm(editId) {
+    const formElement = document.querySelector("#record-form");
+    const saveButton = formElement.querySelector("[data-save-button]");
+    const formError = formElement.querySelector("#form-error");
     document.querySelector('[data-action="cancel-form"]').addEventListener("click", () => render());
     if (id === "schedules") {
       const sessionType = document.querySelector("#session-type");
@@ -149,40 +152,50 @@ async function crud(id) {
       sessionType.addEventListener("change", updateSessionDetails);
       startTime.addEventListener("change", updateSessionDetails);
     }
-    document.querySelector("#record-form").addEventListener("submit", async (e) => {
+    formElement.addEventListener("submit", async (e) => {
       e.preventDefault();
+      saveButton.disabled = true;
+      saveButton.textContent = "Saving…";
+      formError.hidden = true;
       const data = new FormData(e.currentTarget);
       const body = Object.fromEntries(data);
-      ["sort_order", "num_classes", "early_bird_discount_pct", "price_cents", "max_seats"].forEach((k) => { if (k in body) body[k] = Number(body[k]) || 0; });
-      body.active = true;
-      if (id === "schedules") {
-        const days = data.getAll("days");
-        if (!days.length) { alert("Select at least one day of the week."); return; }
-        delete body.days;
-        body.price_cents = Math.round(Number(body.price_dollars) * 100);
-        delete body.price_dollars;
-        body.early_bird_deadline = body.early_bird_deadline || null;
-        const existingSchedules = Array.isArray(editId) ? editId : [];
-        if (existingSchedules.length) {
-          const existingByDay = new Map(existingSchedules.map((schedule) => [schedule.day_of_week, schedule]));
-          const selectedDays = new Set(days);
-          await Promise.all([
-            ...existingSchedules.filter((schedule) => !selectedDays.has(schedule.day_of_week)).map((schedule) => adminApi(`class_schedules/${schedule.id}`, { method: "DELETE" })),
-            ...days.map((day_of_week) => {
-              const existing = existingByDay.get(day_of_week);
-              return existing
-                ? adminApi(`class_schedules/${existing.id}`, { method: "PATCH", body: { ...body, day_of_week } })
-                : adminApi("class_schedules", { method: "POST", body: { ...body, day_of_week } });
-            }),
-          ]);
+      try {
+        ["sort_order", "num_classes", "early_bird_discount_pct", "price_cents", "max_seats"].forEach((k) => { if (k in body) body[k] = Number(body[k]) || 0; });
+        body.active = true;
+        if (id === "schedules") {
+          const days = data.getAll("days");
+          if (!days.length) throw new Error("Select at least one day of the week.");
+          delete body.days;
+          body.price_cents = Math.round(Number(body.price_dollars) * 100);
+          delete body.price_dollars;
+          body.early_bird_deadline = body.early_bird_deadline || null;
+          const existingSchedules = Array.isArray(editId) ? editId : [];
+          if (existingSchedules.length) {
+            const existingByDay = new Map(existingSchedules.map((schedule) => [schedule.day_of_week, schedule]));
+            const selectedDays = new Set(days);
+            await Promise.all([
+              ...existingSchedules.filter((schedule) => !selectedDays.has(schedule.day_of_week)).map((schedule) => adminApi(`class_schedules/${schedule.id}`, { method: "DELETE" })),
+              ...days.map((day_of_week) => {
+                const existing = existingByDay.get(day_of_week);
+                return existing
+                  ? adminApi(`class_schedules/${existing.id}`, { method: "PATCH", body: { ...body, day_of_week } })
+                  : adminApi("class_schedules", { method: "POST", body: { ...body, day_of_week } });
+              }),
+            ]);
+          } else {
+            await Promise.all(days.map((day_of_week) => adminApi("class_schedules", { method: "POST", body: { ...body, day_of_week } })));
+          }
         } else {
-          await Promise.all(days.map((day_of_week) => adminApi("class_schedules", { method: "POST", body: { ...body, day_of_week } })));
+          await adminApi(`${id}${editId ? `/${editId}` : ""}`, { method: editId ? "PATCH" : "POST", body });
         }
-      } else {
-        await adminApi(`${id}${editId ? `/${editId}` : ""}`, { method: editId ? "PATCH" : "POST", body });
+        notify(editId ? `${c.title.slice(0, -1)} saved.` : `${c.title.slice(0, -1)} created.`);
+        render();
+      } catch (error) {
+        formError.textContent = error.message || "Could not save this item. Please try again.";
+        formError.hidden = false;
+        saveButton.disabled = false;
+        saveButton.textContent = editId ? "Save" : "Create";
       }
-      notify(editId ? `${c.title.slice(0, -1)} saved.` : `${c.title.slice(0, -1)} created.`);
-      render();
     });
   }
 }

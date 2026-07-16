@@ -1,7 +1,7 @@
 // Account page — enrollments, credits, upcoming classes, make-up booking.
 // Ported from herfield app/account/AccountPageClient.js, compiled to vanilla JS.
 import { apiGet, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
-import { isLoggedIn, getUser, isAdmin, logout, getToken, requireAuth, claimEnrollments } from "./auth.js";
+import { isLoggedIn, getUser, isAdmin, logout, getToken, refreshToken, requireAuth, claimEnrollments } from "./auth.js";
 
 // Require login — redirect to login.html if not authenticated.
 const user = requireAuth();
@@ -386,9 +386,17 @@ async function loadData() {
   state.error = "";
   render();
   try {
+    // Access tokens expire. Refresh before any protected account request so a
+    // previously signed-in parent never sees a raw 401 response.
+    const token = await refreshToken();
+    if (!token) {
+      const here = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `login.html?next=${here}`;
+      return;
+    }
+
     // Attach any unclaimed guest enrollments for this email (best-effort).
     await claimEnrollments();
-    const token = getToken();
     const [ens, bks] = await Promise.all([
       apiGet("enrollments?order=created_at.desc", token),
       apiGet("bookings?order=booked_at.desc", token),
