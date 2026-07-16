@@ -202,9 +202,11 @@ async function init() {
     state.programs = programs;
 
     if (sems.length > 0) {
-      state.selectedSemester = sems[0].id;
+      const summer2026 = sems.find((semester) => semester.name.trim().toLowerCase() === "summer 2026");
+      const defaultSemester = summer2026 || sems[0];
+      state.selectedSemester = defaultSemester.id;
       state.schedules = await apiGet(
-        `class_schedules?semester_id=eq.${sems[0].id}&active=eq.true&order=day_of_week.asc,start_time.asc`
+        `class_schedules?semester_id=eq.${defaultSemester.id}&active=eq.true&order=day_of_week.asc,start_time.asc`
       );
     }
   } catch (err) {
