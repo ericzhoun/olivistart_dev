@@ -645,7 +645,15 @@ img, svg {
   }
 
   .age-mapping-header {
-    display: none;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr);
+    margin-bottom: 8px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+  }
+
+  .age-mapping-header .age-mapping-label {
+    padding: 8px 10px;
   }
 
   .age-mapping-row {
