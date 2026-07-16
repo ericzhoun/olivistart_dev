@@ -13,6 +13,7 @@
 </head>
 
 <body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="site-header">
     <div class="container header-inner">
       <a href="index.html" class="logo">OliVista <span>Art Studio</span></a>
@@ -31,7 +32,7 @@
     </div>
   </header>
 
-  <main>
+  <main id="main-content">
     <section class="container programs-intro">
       <h1>Weekly Schedule</h1>
       <p>View all available classes across programs.</p>
@@ -39,7 +40,7 @@
     </section>
 
     <section class="container art-calendar">
-      <div id="calendar-root">
+      <div id="calendar-root" aria-live="polite">
         <p class="muted">Loading calendar…</p>
       </div>
     </section>

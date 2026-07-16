@@ -48,6 +48,7 @@ function render() {
     state.semesters.forEach((s) => {
       const btn = el("button",
         `semester-tab ${state.selectedSemester === s.id ? "active" : ""}`, s.name);
+      btn.type = "button";
       btn.onclick = () => changeSemester(s.id);
       tabs.appendChild(btn);
     });
@@ -60,7 +61,13 @@ function render() {
   }
 
   if (state.error) {
-    root.appendChild(el("p", "auth-error", state.error));
+    const error = el("div", "calendar-load-error");
+    error.appendChild(el("p", "auth-error", "Unable to load the schedule. Please try again."));
+    const retry = el("button", "btn", "Try again");
+    retry.type = "button";
+    retry.addEventListener("click", retryScheduleLoad);
+    error.appendChild(retry);
+    root.appendChild(error);
     return;
   }
 
@@ -215,6 +222,13 @@ async function init() {
     state.loading = false;
     render();
   }
+}
+
+async function retryScheduleLoad() {
+  state.loading = true;
+  state.error = "";
+  render();
+  await init();
 }
 
 init();
