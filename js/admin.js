@@ -24,22 +24,46 @@ async function dashboard() {
   app.innerHTML = `<h1>Dashboard</h1><div class="stat-grid">${[[programs.length,"Programs","programs"],[schedules.length,"Class Schedules","schedules"],[enrollments.length,"Enrollments","enrollments"]].map(([n,l,id]) => `<a href="#${id}" class="stat-card"><span class="stat-number">${n}</span><span class="stat-label">${l}</span></a>`).join("")}</div><section class="dashboard-quick-links"><h2>Quick Actions</h2><div class="quick-link-grid"><a class="quick-link" href="#schedules"><h3>Manage Schedules →</h3><p>Add class times, prices, and capacity.</p></a><a class="quick-link" href="#programs"><h3>Manage Programs →</h3><p>Create or update art program types.</p></a><a class="quick-link" href="#enrollments"><h3>View Enrollments →</h3><p>Review students and payment status.</p></a></div></section>`;
 }
 const configs = {
-  programs: { title: "Programs", endpoint: "programs?order=sort_order.asc", fields: [["name","Name"],["slug","Slug"],["description","Description","textarea"],["image_url","Image URL"],["sort_order","Sort Order","number"],["num_classes","Number of Classes","number"],["session_type","Session Type"],["early_bird_discount_pct","Early-Bird Discount %","number"],["early_bird_deadline","Early-Bird Deadline","date"]], cols: ["name","num_classes","session_type","active"], labels: ["Name","Classes","Session","Active"] },
+  programs: { title: "Programs", endpoint: "programs?order=sort_order.asc", fields: [["name","Name"],["slug","Slug"],["description","Description","textarea"],["image_url","Image URL"],["sort_order","Sort Order","number"],["num_classes","Number of Classes","number"],["early_bird_discount_pct","Early-Bird Discount %","number"],["early_bird_deadline","Early-Bird Deadline","date"]], cols: ["name","num_classes","active"], labels: ["Name","Classes","Active"] },
   semesters: { title: "Semesters", endpoint: "semesters?order=start_date.desc", fields: [["name","Name"],["start_date","Start Date","date"],["end_date","End Date","date"]], cols: ["name","start_date","end_date","active"], labels: ["Name","Start","End","Active"] },
-  schedules: { title: "Class Schedules", endpoint: "class_schedules?order=created_at.desc", fields: [["program_id","Program ID"],["semester_id","Semester ID"],["day_of_week","Day of Week"],["start_time","Start Time","time"],["end_time","End Time","time"],["age_group","Age Group"],["price_cents","Price (cents)","number"],["max_seats","Max Seats","number"],["notes","Notes","textarea"]], cols: ["program_id","semester_id","day_of_week","start_time","age_group","price_cents","max_seats","active"], labels: ["Program","Semester","Day","Start","Age","Price","Seats","Active"] },
+  schedules: { title: "Class Schedules", endpoint: "class_schedules?order=created_at.desc", fields: [], cols: ["program_id","semester_id","day_of_week","session_type","start_time","age_group","price_cents","max_seats","active"], labels: ["Program","Semester","Day","Session","Start","Age","Price","Seats","Active"] },
 };
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const SESSION_TYPES = {
+  standard: { label: "Standard Session", minutes: 60 },
+  extended: { label: "Extended Session", minutes: 90 },
+  full: { label: "Full Session", minutes: 120 },
+};
+const HOURLY_RATE = 35;
+
+function sessionTypeFor(values) {
+  if (SESSION_TYPES[values.session_type]) return values.session_type;
+  if (!values.start_time || !values.end_time) return "standard";
+  const [startHours, startMinutes] = values.start_time.split(":").map(Number);
+  const [endHours, endMinutes] = values.end_time.split(":").map(Number);
+  const duration = ((endHours * 60 + endMinutes) - (startHours * 60 + startMinutes) + 1440) % 1440;
+  return Object.entries(SESSION_TYPES).find(([, type]) => type.minutes === duration)?.[0] || "standard";
+}
+
+function addMinutes(time, minutes) {
+  const [hours, mins] = time.split(":").map(Number);
+  const result = (hours * 60 + mins + minutes) % 1440;
+  return `${String(Math.floor(result / 60)).padStart(2, "0")}:${String(result % 60).padStart(2, "0")}`;
+}
 
 function scheduleForm(values, programs, semesters, title, isEditing = false) {
   const selectedDays = isEditing ? [values.day_of_week] : [];
+  const sessionType = sessionTypeFor(values);
+  const priceDollars = values.price_cents != null ? (values.price_cents / 100).toFixed(2) : (SESSION_TYPES[sessionType].minutes / 60 * HOURLY_RATE).toFixed(2);
   return `<form id="record-form" class="admin-form">
     <h3>${title}</h3>
     <label>Program<select name="program_id" required><option value="">Select a program</option>${programs.map((p) => `<option value="${esc(p.id)}" ${p.id === values.program_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
     <label>Semester<select name="semester_id" required><option value="">Select a semester</option>${semesters.map((s) => `<option value="${esc(s.id)}" ${s.id === values.semester_id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
     <fieldset class="day-picker"><legend>${isEditing ? "Day of week" : "Days of week"}</legend><p class="hint">${isEditing ? "Editing changes this schedule's day." : "A separate schedule will be created for each selected day."}</p><div>${DAYS.map((day) => `<label><input type="checkbox" name="days" value="${day}" ${selectedDays.includes(day) ? "checked" : ""}> ${day}</label>`).join("")}</div></fieldset>
-    <div class="form-row"><label>Start time<input name="start_time" type="time" required value="${esc(values.start_time || "10:00")}"></label><label>End time<input name="end_time" type="time" required value="${esc(values.end_time || "11:30")}"></label></div>
+    <label>Session type<select name="session_type" id="session-type" required>${Object.entries(SESSION_TYPES).map(([key, type]) => `<option value="${key}" ${key === sessionType ? "selected" : ""}>${type.label}</option>`).join("")}</select></label>
+    <div class="form-row"><label>Start time<input name="start_time" id="start-time" type="time" required value="${esc(values.start_time || "10:00")}"></label><label>End time<input name="end_time" id="end-time" type="time" required readonly value="${esc(values.end_time || addMinutes(values.start_time || "10:00", SESSION_TYPES[sessionType].minutes))}"></label></div>
     <div class="form-row"><label>Age group<input name="age_group" required value="${esc(values.age_group || "")}" placeholder="e.g. Ages 6-10"></label><label>Max seats<input name="max_seats" type="number" min="1" required value="${esc(values.max_seats || 8)}"></label></div>
-    <div class="form-row"><label>Price per class (cents)<input name="price_cents" type="number" min="0" required value="${esc(values.price_cents || 35000)}"></label><label>Early-bird discount %<input name="early_bird_discount_pct" type="number" min="0" max="100" value="${esc(values.early_bird_discount_pct || 0)}"></label></div>
+    <div class="form-row"><label>Price per class ($)<input name="price_dollars" id="price-dollars" type="number" min="0" step="0.01" required value="${esc(priceDollars)}"><span class="hint">Calculated at $35/hour. You can adjust it if needed.</span></label><label>Early-bird discount %<input name="early_bird_discount_pct" type="number" min="0" max="100" value="${esc(values.early_bird_discount_pct || 0)}"></label></div>
     <label>Early-bird deadline<input name="early_bird_deadline" type="date" value="${esc(values.early_bird_deadline ? values.early_bird_deadline.slice(0, 10) : "")}"></label>
     <label>Notes<textarea name="notes">${esc(values.notes || "")}</textarea></label>
     <div class="form-actions"><button class="btn btn-sm">${isEditing ? "Update" : "Create schedules"}</button>${button("Cancel", "cancel-form", "btn btn-sm btn-secondary")}</div>
@@ -53,7 +77,15 @@ async function crud(id) {
     id === "schedules" ? adminApi("programs?order=sort_order.asc") : Promise.resolve([]),
     id === "schedules" ? adminApi("semesters?order=start_date.desc") : Promise.resolve([]),
   ]);
-  app.innerHTML = `<div class="admin-crud-header"><h1>${c.title}</h1>${button(`+ New ${c.title.slice(0,-1)}`, "new-record")}</div><div id="form-slot"></div>${table(c.labels.concat("Actions"), items.map((item) => `<tr>${c.cols.map((key) => `<td>${key.includes("date") ? date(item[key]) : key === "price_cents" ? formatPrice(item[key]) : esc(item[key] ?? (key === "active" ? "✓" : "-"))}</td>`).join("")}<td>${button("Edit", `edit:${item.id}`)} ${button("Delete", `delete:${item.id}`, "btn btn-sm btn-danger")}</td></tr>`).join(""))}`;
+  const displayValue = (item, key) => {
+    if (id === "schedules" && key === "program_id") return programs.find((p) => p.id === item.program_id)?.name || "-";
+    if (id === "schedules" && key === "semester_id") return semesters.find((s) => s.id === item.semester_id)?.name || "-";
+    if (id === "schedules" && key === "session_type") return SESSION_TYPES[sessionTypeFor(item)].label;
+    if (key.includes("date")) return date(item[key]);
+    if (key === "price_cents") return formatPrice(item[key]);
+    return item[key] ?? (key === "active" ? "✓" : "-");
+  };
+  app.innerHTML = `<div class="admin-crud-header"><h1>${c.title}</h1>${button(`+ New ${c.title.slice(0,-1)}`, "new-record")}</div><div id="form-slot"></div>${table(c.labels.concat("Actions"), items.map((item) => `<tr>${c.cols.map((key) => `<td>${esc(displayValue(item, key))}</td>`).join("")}<td>${button("Edit", `edit:${item.id}`)} ${button("Delete", `delete:${item.id}`, "btn btn-sm btn-danger")}</td></tr>`).join(""))}`;
   app.addEventListener("click", crudActions, { once: true });
   async function crudActions(e) {
     const action = e.target.dataset.action || "";
@@ -70,6 +102,19 @@ async function crud(id) {
     }
   }
   function bindForm(editId) {
+    if (id === "schedules") {
+      const sessionType = document.querySelector("#session-type");
+      const startTime = document.querySelector("#start-time");
+      const endTime = document.querySelector("#end-time");
+      const priceDollars = document.querySelector("#price-dollars");
+      const updateSessionDetails = () => {
+        const type = SESSION_TYPES[sessionType.value];
+        endTime.value = addMinutes(startTime.value, type.minutes);
+        priceDollars.value = (type.minutes / 60 * HOURLY_RATE).toFixed(2);
+      };
+      sessionType.addEventListener("change", updateSessionDetails);
+      startTime.addEventListener("change", updateSessionDetails);
+    }
     document.querySelector("#record-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const data = new FormData(e.currentTarget);
@@ -80,6 +125,8 @@ async function crud(id) {
         const days = data.getAll("days");
         if (!days.length) { alert("Select at least one day of the week."); return; }
         delete body.days;
+        body.price_cents = Math.round(Number(body.price_dollars) * 100);
+        delete body.price_dollars;
         body.early_bird_deadline = body.early_bird_deadline || null;
         if (editId) await adminApi(`class_schedules/${editId}`, { method: "PATCH", body: { ...body, day_of_week: days[0] } });
         else await Promise.all(days.map((day_of_week) => adminApi("class_schedules", { method: "POST", body: { ...body, day_of_week } })));
@@ -92,6 +139,58 @@ async function crud(id) {
 }
 async function enrollments() { const items = await adminApi("enrollments?order=created_at.desc"); app.innerHTML = `<div class="admin-crud-header"><h1>Enrollments</h1></div>${table(["Student","Email","Status","Date","Actions"], items.map((e) => `<tr><td>${esc(e.student_name)}</td><td>${esc(e.student_email)}</td><td><span class="status-badge status-${e.status}">${esc(e.status)}</span></td><td>${date(e.created_at)}</td><td>${e.status === "pending" ? button("Confirm", `confirm:${e.id}`) : ""} ${["pending","confirmed"].includes(e.status) ? button("Cancel", `cancel:${e.id}`, "btn btn-sm btn-danger") : ""}</td></tr>`).join(""))}`; app.addEventListener("click", async (e) => { const a = e.target.dataset.action || ""; if (a.startsWith("confirm:") || a.startsWith("cancel:")) { await adminApi(`enrollments/${a.slice(8)}`, { method: "PATCH", body: { status: a.startsWith("confirm:") ? "confirmed" : "cancelled" } }); render(); } }, { once: true }); }
 async function students() { const items = await adminApi("enrollments?order=created_at.desc"); const map = new Map(); items.forEach((e) => { const key = e.student_email || e.student_name; const s = map.get(key) || { name: e.student_name, email: e.student_email, phone: e.student_phone, total: 0, confirmed: 0, pending: 0, last: e.created_at }; s.total++; if (e.status === "confirmed") s.confirmed++; if (e.status === "pending") s.pending++; map.set(key, s); }); app.innerHTML = `<h1>Students</h1>${table(["Name","Email","Phone","Total","Confirmed","Pending","Last Active"], [...map.values()].map((s) => `<tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.phone || "-")}</td><td>${s.total}</td><td>${s.confirmed}</td><td>${s.pending}</td><td>${date(s.last)}</td></tr>`).join(""))}`; }
-async function sessions() { const [items, schedules, programs] = await Promise.all([adminApi("class_sessions?order=class_date.asc&limit=200"), adminApi("class_schedules"), adminApi("programs")]); const name = (id) => { const s = schedules.find((x) => x.id === id); const p = s && programs.find((x) => x.id === s.program_id); return p ? `${p.name} - ${s.day_of_week} ${formatTime(s.start_time)}` : "-"; }; app.innerHTML = `<div class="admin-crud-header"><h1>Class Sessions</h1></div>${table(["Program / Schedule","Date","Status","Actions"], items.map((s) => `<tr><td>${esc(name(s.schedule_id))}</td><td>${date(s.class_date)}</td><td><span class="status-badge status-${s.status === "scheduled" ? "confirmed" : "cancelled"}">${esc(s.status)}</span></td><td>${button("Attendance", `attendance:${s.id}`)}</td></tr>`).join(""))}`; }
+async function sessions() {
+  const [items, schedules, programs] = await Promise.all([adminApi("class_sessions?order=class_date.asc&limit=200"), adminApi("class_schedules"), adminApi("programs")]);
+  const name = (id) => {
+    const schedule = schedules.find((item) => item.id === id);
+    const program = schedule && programs.find((item) => item.id === schedule.program_id);
+    return program ? `${program.name} - ${schedule.day_of_week} ${formatTime(schedule.start_time)}` : "-";
+  };
+  app.innerHTML = `<div class="admin-crud-header"><h1>Class Sessions</h1></div>${table(["Program / Schedule", "Date", "Status", "Actions"], items.map((session) => `<tr><td>${esc(name(session.schedule_id))}</td><td>${date(session.class_date)}</td><td><span class="status-badge status-${session.status === "scheduled" ? "confirmed" : "cancelled"}">${esc(session.status)}</span></td><td>${button("Attendance", `attendance:${session.id}`)}</td></tr>`).join(""))}`;
+  app.addEventListener("click", (event) => {
+    const action = event.target.dataset.action || "";
+    if (action.startsWith("attendance:")) attendance(action.slice("attendance:".length));
+  }, { once: true });
+}
+
+async function attendance(sessionId) {
+  const [sessionRows, bookings] = await Promise.all([
+    adminApi(`class_sessions?id=eq.${sessionId}`),
+    adminApi(`bookings?session_id=eq.${sessionId}&order=booked_at.asc`),
+  ]);
+  const session = sessionRows[0];
+  if (!session) throw new Error("Session not found.");
+  const [scheduleRows, enrollmentResults] = await Promise.all([
+    adminApi(`class_schedules?id=eq.${session.schedule_id}`),
+    Promise.all([...new Set(bookings.map((booking) => booking.enrollment_id))].map((id) => adminApi(`enrollments?id=eq.${id}`))),
+  ]);
+  const schedule = scheduleRows[0];
+  const programRows = schedule ? await adminApi(`programs?id=eq.${schedule.program_id}`) : [];
+  const enrollments = enrollmentResults.flat();
+  const enrollmentFor = (id) => enrollments.find((enrollment) => enrollment.id === id);
+  const activeBookings = bookings.filter((booking) => ["scheduled", "attended", "no_show"].includes(booking.status));
+  const attendanceRows = activeBookings.map((booking) => {
+    const enrollment = enrollmentFor(booking.enrollment_id);
+    const label = booking.status === "scheduled" ? "Pending" : booking.status === "attended" ? "Attended" : "No-show";
+    const statusClass = booking.status === "scheduled" ? "pending" : booking.status === "attended" ? "confirmed" : "cancelled";
+    return `<tr><td>${esc(enrollment?.student_name || "-")}</td><td>${esc(enrollment?.student_email || "-")}${enrollment?.student_phone ? `<br>${esc(enrollment.student_phone)}` : ""}</td><td>${esc(booking.type === "home" ? "Home" : "Make-up")}</td><td><span class="status-badge status-${statusClass}">${label}</span></td><td>${button("✓ Attended", `mark:${booking.id}:attended`)} ${button("✗ No-show", `mark:${booking.id}:no_show`, "btn btn-sm btn-danger")}</td></tr>`;
+  }).join("");
+  const skipped = bookings.filter((booking) => ["skipped", "cancelled"].includes(booking.status));
+  app.innerHTML = `<div class="admin-crud-header"><h1>Attendance Sheet</h1>${button("← Back to Sessions", "back-to-sessions")}</div><section class="attendance-session-info"><h3>${esc(programRows[0]?.name || "Class session")}</h3><p class="muted">${esc(schedule ? `${schedule.day_of_week} ${formatTime(schedule.start_time)}-${formatTime(schedule.end_time)} · ${schedule.age_group}` : "")}</p><p class="muted">${date(session.class_date)}</p></section>${activeBookings.length ? table(["Student", "Contact", "Type", "Status", "Actions"], attendanceRows) : `<div class="empty-state"><p>No students booked for this session.</p></div>`}${skipped.length ? `<section class="attendance-section-muted"><h3>Skipped / Cancelled</h3>${table(["Student", "Type", "Status"], skipped.map((booking) => `<tr><td>${esc(enrollmentFor(booking.enrollment_id)?.student_name || "-")}</td><td>${esc(booking.type)}</td><td><span class="status-badge status-cancelled">${esc(booking.status)}</span></td></tr>`).join(""))}</section>` : ""}`;
+  app.addEventListener("click", async (event) => {
+    const action = event.target.dataset.action || "";
+    if (action === "back-to-sessions") { await sessions(); return; }
+    if (!action.startsWith("mark:")) return;
+    const [, bookingId, status] = action.split(":");
+    event.target.disabled = true;
+    try {
+      await adminApi("fn/mark-attendance", { method: "POST", body: { booking_id: bookingId, status } });
+      await attendance(sessionId);
+    } catch (error) {
+      event.target.disabled = false;
+      alert(error.message || "Could not update attendance.");
+    }
+  }, { once: true });
+}
 async function render() { if (!guard()) return; renderNav(); try { const id = query(); if (id === "dashboard") await dashboard(); else if (configs[id]) await crud(id); else if (id === "enrollments") await enrollments(); else if (id === "students") await students(); else if (id === "sessions") await sessions(); else app.innerHTML = `<h1>${id[0].toUpperCase() + id.slice(1)}</h1><p class="muted">Section unavailable.</p>`; } catch (err) { app.innerHTML = `<p class="auth-error">${esc(err.message)}</p>`; } }
 window.addEventListener("hashchange", render); document.querySelector("#admin-logout").addEventListener("click", async () => { await logout(); location.href = "index.html"; }); render();

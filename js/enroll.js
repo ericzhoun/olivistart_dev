@@ -69,8 +69,9 @@ function render() {
     const info = el("div", "enroll-program-info");
     info.appendChild(el("h3", "", state.program.name));
     info.appendChild(el("p", "muted", state.program.description || ""));
-    if (state.program.session_type && state.program.session_type !== "standard") {
-      info.appendChild(el("span", "session-badge", `${state.program.session_type} session`));
+    const sessionType = state.schedule?.session_type || state.program.session_type;
+    if (sessionType && sessionType !== "standard") {
+      info.appendChild(el("span", "session-badge", `${sessionType} session`));
     }
     root.appendChild(info);
   }
