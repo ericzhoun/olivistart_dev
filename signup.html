@@ -37,21 +37,26 @@
         <h2>Create Account</h2>
         <p class="auth-subtitle">Sign up to enroll in art classes</p>
         <p id="auth-error" class="auth-error" hidden></p>
+        <p id="auth-info" class="auth-info" hidden></p>
         <form id="signup-form" class="auth-form">
-          <label>
+          <label id="name-field">
             Full Name
             <input type="text" id="name" required placeholder="Your name">
           </label>
-          <label>
+          <label id="email-field">
             Email
             <input type="email" id="email" required placeholder="you@example.com">
           </label>
-          <label>
-            Password
-            <input type="password" id="password" required placeholder="At least 8 characters">
+          <label id="code-field" hidden>
+            6-digit verification code
+            <input type="text" id="code" inputmode="numeric" autocomplete="one-time-code"
+                   maxlength="6" placeholder="123456" class="code-input">
           </label>
-          <button type="submit" class="btn auth-btn">Sign Up</button>
+          <button type="submit" class="btn auth-btn" id="signup-submit">Send Verification Code</button>
         </form>
+        <p id="resend-row" class="auth-switch" hidden>
+          Didn't get a code? <a href="#" id="resend-link">Resend code</a>
+        </p>
         <p class="auth-switch">
           Already have an account? <a href="login.html">Log in</a>
         </p>
