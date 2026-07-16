@@ -710,6 +710,18 @@ img, svg {
     grid-template-columns: 1fr;
   }
 
+  .program-visual {
+    padding: 24px;
+  }
+
+  .program-photo {
+    display: block;
+    width: 100%;
+    height: auto;
+    float: none;
+    object-fit: contain;
+  }
+
   .program-section.reverse .program-visual {
     order: -1;
   }
