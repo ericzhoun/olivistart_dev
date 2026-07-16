@@ -66,7 +66,7 @@ function addMinutes(time, minutes) {
 }
 
 function scheduleForm(values, programs, semesters, title, isEditing = false) {
-  const selectedDays = isEditing ? (values.days || [values.day_of_week]) : [];
+  const selectedDays = values.days || (isEditing ? [values.day_of_week] : []);
   const sessionType = sessionTypeFor(values);
   const priceDollars = values.price_cents != null ? (values.price_cents / 100).toFixed(2) : (SESSION_TYPES[sessionType].minutes / 60 * HOURLY_RATE).toFixed(2);
   return `<form id="record-form" class="admin-form">
@@ -112,14 +112,24 @@ async function crud(id) {
     activeDays: group.members.filter((item) => item.active !== false).map((item) => item.day_of_week).sort((a, b) => dayOrder[a] - dayOrder[b]),
   })) : [];
   const tableRows = id === "schedules"
-    ? scheduleGroups.map((group) => `<tr>${c.cols.map((key) => `<td>${esc(key === "day_of_week" ? (group.activeDays.join(", ") || "None") : key === "active" ? (group.activeDays.length === 0 ? "Inactive" : group.activeDays.length === group.members.length ? "Active" : "Partial") : displayValue(group.item, key))}</td>`).join("")}<td>${button("Edit", `edit-group:${group.members.map((item) => item.id).join(",")}`)} ${button("Delete", `delete-group:${group.members.map((item) => item.id).join(",")}`, "btn btn-sm btn-danger")}</td></tr>`).join("")
+    ? scheduleGroups.map((group) => {
+      const cells = c.cols.map((key) => `<td>${esc(key === "day_of_week" ? (group.activeDays.join(", ") || "None") : key === "active" ? (group.activeDays.length === 0 ? "Inactive" : group.activeDays.length === group.members.length ? "Active" : "Partial") : displayValue(group.item, key))}</td>`);
+      const actions = `<td>${button("Copy", `copy-group:${group.members.map((item) => item.id).join(",")}`)} ${button("Edit", `edit-group:${group.members.map((item) => item.id).join(",")}`)} ${button("Delete", `delete-group:${group.members.map((item) => item.id).join(",")}`, "btn btn-sm btn-danger")}</td>`;
+      return `<tr>${cells[0]}${actions}${cells.slice(1).join("")}</tr>`;
+    }).join("")
     : items.map((item) => `<tr>${c.cols.map((key) => `<td>${esc(displayValue(item, key))}</td>`).join("")}<td>${button("Edit", `edit:${item.id}`)} ${button("Delete", `delete:${item.id}`, "btn btn-sm btn-danger")}</td></tr>`).join("");
-  app.innerHTML = `<div class="admin-crud-header"><h1>${c.title}</h1>${button(`+ New ${c.title.slice(0,-1)}`, "new-record")}</div><div id="form-slot"></div>${table(c.labels.concat("Actions"), tableRows)}`;
+  const headers = id === "schedules" ? [c.labels[0], "Actions", ...c.labels.slice(1)] : c.labels.concat("Actions");
+  app.innerHTML = `<div class="admin-crud-header"><h1>${c.title}</h1>${button(`+ New ${c.title.slice(0,-1)}`, "new-record")}</div><div id="form-slot"></div>${table(headers, tableRows)}`;
   app.addEventListener("click", crudActions, { once: true });
   async function crudActions(e) {
     const action = e.target.dataset.action || "";
     if (action === "new-record") {
       document.querySelector("#form-slot").innerHTML = id === "schedules" ? scheduleForm({}, programs, semesters, "New Class Schedules") : form(c.fields, {}, `New ${c.title.slice(0,-1)}`);
+      bindForm();
+    } else if (action.startsWith("copy-group:")) {
+      const ids = action.slice("copy-group:".length).split(",");
+      const group = scheduleGroups.find((candidate) => candidate.members.every((item) => ids.includes(item.id)) && candidate.members.length === ids.length);
+      document.querySelector("#form-slot").innerHTML = scheduleForm({ ...group.item, days: group.days, active: group.activeDays.length > 0 }, programs, semesters, "Copy Class Schedule");
       bindForm();
     } else if (action.startsWith("edit-group:")) {
       const ids = action.slice("edit-group:".length).split(",");
