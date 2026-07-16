@@ -1,4 +1,4 @@
-// Login page logic — password or magic-link code. After any successful
+// Login page logic - password or magic-link code. After any successful
 // login, unclaimed enrollments matching the verified email attach to the
 // account (guest-checkout recovery path).
 import { login, isLoggedIn, sendMagicLink, verifyMagicLink, claimEnrollments } from "./auth.js";
@@ -76,7 +76,7 @@ form.addEventListener("submit", async (e) => {
     if (mode === "magic-send") {
       await sendMagicLink(email);
       setMode("magic-verify");
-      showInfo("Code sent! Check your email — it expires in 15 minutes.");
+      showInfo("Code sent! Check your email - it expires in 15 minutes.");
       return;
     }
     await verifyMagicLink(email, codeInput.value.trim());

@@ -978,6 +978,13 @@ img, svg {
   color: var(--color-text);
 }
 
+/* The hidden attribute must win over the display rules above. */
+.auth-form label[hidden],
+.auth-form p[hidden],
+[hidden] {
+  display: none !important;
+}
+
 .auth-form input {
   width: 100%;
   padding: 0.7rem 0.8rem;

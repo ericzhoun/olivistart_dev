@@ -189,7 +189,7 @@ function render() {
 
     if (!state.user) {
       form.appendChild(el("p", "muted enroll-guest-note",
-        "No account needed — pay now and create your account afterwards. " +
+        "No account needed - pay now and create your account afterwards. " +
         "Already have one? <a href=\"login.html?next=" +
         encodeURIComponent(`enroll.html?schedule=${scheduleId}`) + "\">Log in</a>."));
 

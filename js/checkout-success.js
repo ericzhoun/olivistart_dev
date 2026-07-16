@@ -1,7 +1,7 @@
 // Post-payment page for guest checkout. Enrollment was already fulfilled by
 // the payment webhook; this page only claims it into an account via a
 // magic-link email code (proof of email ownership). Closing the browser here
-// loses nothing — the same claim runs on any later login.
+// loses nothing - the same claim runs on any later login.
 import { getQueryParam } from "./api.js";
 import { isLoggedIn, sendMagicLink, verifyMagicLink, claimEnrollments } from "./auth.js";
 
@@ -35,7 +35,7 @@ function registrationHref() {
 
 function renderBanner() {
   const banner = el("div", "payment-success-banner");
-  banner.appendChild(el("p", "", "✓ Payment received — you're enrolled!"));
+  banner.appendChild(el("p", "", "✓ Payment received - you're enrolled!"));
   return banner;
 }
 
@@ -60,7 +60,7 @@ function renderClaim() {
   root.appendChild(renderBanner());
   root.appendChild(el("h2", "", "Create your account to manage this class"));
   root.appendChild(el("p", "auth-subtitle",
-    "We'll email you a 6-digit code — no password needed. " +
+    "We'll email you a 6-digit code - no password needed. " +
     "Use the same email you entered at checkout."));
 
   if (state.error) root.appendChild(el("p", "auth-error", state.error));
@@ -118,7 +118,7 @@ function renderClaim() {
   }
 
   const alt = el("p", "auth-switch");
-  alt.innerHTML = `Prefer a password? <a href="login.html?next=${encodeURIComponent(registrationHref())}">Log in</a> — your enrollment attaches automatically.`;
+  alt.innerHTML = `Prefer a password? <a href="login.html?next=${encodeURIComponent(registrationHref())}">Log in</a> - your enrollment attaches automatically.`;
   root.appendChild(alt);
 }
 

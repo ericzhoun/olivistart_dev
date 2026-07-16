@@ -1,4 +1,4 @@
-// Auth helpers — email/password and magic-link auth against the Butterbase
+// Auth helpers - email/password and magic-link auth against the Butterbase
 // backend, tokens cached in localStorage. Ported from herfield app/lib/auth.js.
 import { AUTH_BASE, API_BASE } from "./api.js";
 
