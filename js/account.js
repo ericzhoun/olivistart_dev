@@ -26,6 +26,7 @@ const state = {
 };
 
 const root = document.getElementById("account-root");
+let dataLoadVersion = 0;
 
 function el(tag, className, html) {
   const e = document.createElement(tag);
@@ -400,8 +401,40 @@ function syncPendingPayments(pending, token) {
   });
 }
 
+async function loadAccountDetails(token, version) {
+  const sessionIds = [...new Set(state.bookings.map((booking) => booking.session_id).filter(Boolean))];
+  const enrollmentScheduleIds = [...new Set(state.enrollments.map((enrollment) => enrollment.schedule_id).filter(Boolean))];
+
+  try {
+    const sessions = await apiGetByIds("class_sessions", sessionIds, token);
+    if (version !== dataLoadVersion) return;
+
+    const scheduleIds = [...new Set([
+      ...enrollmentScheduleIds,
+      ...sessions.map((session) => session.schedule_id).filter(Boolean),
+    ])];
+    const schedules = await apiGetByIds("class_schedules", scheduleIds, token);
+    if (version !== dataLoadVersion) return;
+
+    const programIds = [...new Set(schedules.map((schedule) => schedule.program_id).filter(Boolean))];
+    const programs = await apiGetByIds("programs", programIds, token);
+    if (version !== dataLoadVersion) return;
+
+    state.sessions = sessions;
+    state.schedules = schedules;
+    state.programs = programs;
+  } catch (err) {
+    // The account itself is usable without these display details. Keep the
+    // primary enrollment data visible and allow the next refresh to retry.
+    console.warn("Could not load account schedule details", err);
+  } finally {
+    if (version === dataLoadVersion) render();
+  }
+}
+
 // ---- data load ----
 async function loadData() {
+  const version = ++dataLoadVersion;
   state.loading = true;
   state.error = "";
   render();
@@ -425,25 +458,7 @@ async function loadData() {
     const pending = state.enrollments.filter((e) => e.status === "pending" && e.id);
     refreshAfterClaims();
     syncPendingPayments(pending, token);
-
-    if (state.bookings.length > 0) {
-      // Fetch session details for bookings
-      const sessionIds = [...new Set(state.bookings.map((b) => b.session_id))];
-      const allSessions = await apiGetByIds("class_sessions", sessionIds, token);
-      state.sessions = allSessions;
-
-      // Fetch schedule details
-      const schedIds = [...new Set(allSessions.map((s) => s.schedule_id))];
-      if (schedIds.length > 0) {
-        state.schedules = await apiGetByIds("class_schedules", schedIds, token);
-
-        // Fetch programs
-        const progIds = [...new Set(state.schedules.map((s) => s.program_id))];
-        if (progIds.length > 0) {
-          state.programs = await apiGetByIds("programs", progIds, token);
-        }
-      }
-    }
+    void loadAccountDetails(token, version);
   } catch (err) {
     state.error = err.message;
   } finally {
@@ -453,4 +468,8 @@ async function loadData() {
 }
 
 loadData();
+} else {
+  const root = document.getElementById("account-root");
+  const here = encodeURIComponent(window.location.pathname + window.location.search);
+  root.innerHTML = `<p class="auth-error">Your session has expired. <a href="login.html?next=${here}">Log in to view your account.</a></p>`;
 }
