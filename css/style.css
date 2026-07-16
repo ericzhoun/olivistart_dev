@@ -110,6 +110,8 @@ img, svg {
 .admin-form { background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 26px; margin-bottom: 24px; max-width: 900px; }
 .admin-form label { display: block; margin: 0 0 16px; font-weight: 600; }
 .admin-form input, .admin-form textarea, .admin-form select { display: block; width: 100%; margin-top: 6px; border: 1px solid #d8d0c4; border-radius: 7px; padding: 10px 12px; font: inherit; background: #fff; }
+.admin-form .checkbox-label { display: flex; align-items: center; gap: 8px; }
+.admin-form .checkbox-label input { width: auto; margin: 0; }
 .admin-form textarea { min-height: 88px; resize: vertical; }
 .admin-form .form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .day-picker { margin: 0 0 16px; padding: 14px; border: 1px solid var(--color-border); border-radius: 7px; }

@@ -66,13 +66,14 @@ function addMinutes(time, minutes) {
 }
 
 function scheduleForm(values, programs, semesters, title, isEditing = false) {
-  const selectedDays = isEditing ? (values.activeDays || values.days || [values.day_of_week]) : [];
+  const selectedDays = isEditing ? (values.days || [values.day_of_week]) : [];
   const sessionType = sessionTypeFor(values);
   const priceDollars = values.price_cents != null ? (values.price_cents / 100).toFixed(2) : (SESSION_TYPES[sessionType].minutes / 60 * HOURLY_RATE).toFixed(2);
   return `<form id="record-form" class="admin-form">
     <h3>${title}</h3><p class="auth-error" id="form-error" hidden></p>
     <label>Program<select name="program_id" required><option value="">Select a program</option>${programs.map((p) => `<option value="${esc(p.id)}" ${p.id === values.program_id ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
     <label>Semester<select name="semester_id" required><option value="">Select a semester</option>${semesters.map((s) => `<option value="${esc(s.id)}" ${s.id === values.semester_id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
+    <label class="checkbox-label"><input name="active" type="checkbox" ${values.active !== false ? "checked" : ""}> Active (visible and available for booking)</label>
     <fieldset class="day-picker"><legend>${isEditing ? "Day of week" : "Days of week"}</legend><p class="hint">${isEditing ? "Editing changes this schedule's day." : "A separate schedule will be created for each selected day."}</p><div>${DAYS.map((day) => `<label><input type="checkbox" name="days" value="${day}" ${selectedDays.includes(day) ? "checked" : ""}> ${day}</label>`).join("")}</div></fieldset>
     <label>Session type<select name="session_type" id="session-type" required>${Object.entries(SESSION_TYPES).map(([key, type]) => `<option value="${key}" ${key === sessionType ? "selected" : ""}>${type.label}</option>`).join("")}</select></label>
     <div class="form-row"><label>Start time<input name="start_time" id="start-time" type="time" required value="${esc(values.start_time || "10:00")}"></label><label>End time<input name="end_time" id="end-time" type="time" required readonly value="${esc(values.end_time || addMinutes(values.start_time || "10:00", SESSION_TYPES[sessionType].minutes))}"></label></div>
@@ -123,7 +124,7 @@ async function crud(id) {
     } else if (action.startsWith("edit-group:")) {
       const ids = action.slice("edit-group:".length).split(",");
       const group = scheduleGroups.find((candidate) => candidate.members.every((item) => ids.includes(item.id)) && candidate.members.length === ids.length);
-      document.querySelector("#form-slot").innerHTML = scheduleForm({ ...group.item, days: group.days, activeDays: group.activeDays }, programs, semesters, "Edit Class Schedules", true);
+      document.querySelector("#form-slot").innerHTML = scheduleForm({ ...group.item, days: group.days, active: group.activeDays.length > 0 }, programs, semesters, "Edit Class Schedules", true);
       bindForm(group.members);
     } else if (action.startsWith("edit:")) {
       const item = items.find((x) => String(x.id) === action.slice(5));
@@ -168,7 +169,7 @@ async function crud(id) {
         ["early_bird_deadline", "start_date", "end_date"].forEach((key) => {
           if (key in body && !body[key]) body[key] = null;
         });
-        body.active = true;
+        body.active = id === "schedules" ? data.get("active") === "on" : true;
         if (id === "schedules") {
           const days = data.getAll("days");
           const existingSchedules = Array.isArray(editId) ? editId : [];
@@ -182,7 +183,7 @@ async function crud(id) {
             await Promise.all([
               ...existingSchedules.map((schedule) => adminApi(`class_schedules/${schedule.id}`, {
                 method: "PATCH",
-                body: { ...body, day_of_week: schedule.day_of_week, active: selectedDays.has(schedule.day_of_week) },
+                body: { ...body, day_of_week: schedule.day_of_week, active: body.active && selectedDays.has(schedule.day_of_week) },
               })),
               ...days.map((day_of_week) => {
                 const existing = existingByDay.get(day_of_week);
