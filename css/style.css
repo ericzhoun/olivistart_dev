@@ -125,6 +125,7 @@ img, svg {
 .status-confirmed { color: #35643b; background: #dcefdc; }
 .status-pending { color: #805b1d; background: #fff0c8; }
 .status-cancelled { color: #88343d; background: #f7d9dc; }
+.status-date-passed { color: #5c5d61; background: #ececef; }
 @media (max-width: 760px) { .admin-layout { display: block; } .admin-sidebar { width: 100%; padding: 18px; } .admin-brand { padding-bottom: 14px; } .admin-nav { display: flex; overflow-x: auto; } .admin-nav a { white-space: nowrap; } .admin-sidebar-footer { display: flex; margin-top: 14px; align-items: center; } .admin-content { padding: 32px 18px; } .stat-grid, .quick-link-grid, .admin-form .form-row { grid-template-columns: 1fr; margin-bottom: 30px; } }
 
 .btn-visual-discovery { background: var(--color-visual-discovery); }

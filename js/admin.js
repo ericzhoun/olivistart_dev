@@ -229,12 +229,31 @@ async function enrollments() {
 async function students() { const items = await adminApi("enrollments?order=created_at.desc"); const map = new Map(); items.forEach((e) => { const key = e.student_email || e.student_name; const s = map.get(key) || { name: e.student_name, email: e.student_email, phone: e.student_phone, total: 0, confirmed: 0, pending: 0, last: e.created_at }; s.total++; if (e.status === "confirmed") s.confirmed++; if (e.status === "pending") s.pending++; map.set(key, s); }); app.innerHTML = `<h1>Students</h1>${table(["Name","Email","Phone","Total","Confirmed","Pending","Last Active"], [...map.values()].map((s) => `<tr><td>${esc(s.name)}</td><td>${esc(s.email)}</td><td>${esc(s.phone || "-")}</td><td>${s.total}</td><td>${s.confirmed}</td><td>${s.pending}</td><td>${date(s.last)}</td></tr>`).join(""))}`; }
 async function sessions() {
   const [items, schedules, programs] = await Promise.all([adminApi("class_sessions?order=class_date.asc&limit=200"), adminApi("class_schedules"), adminApi("programs")]);
+  const sessionIds = items.map((session) => session.id).filter(Boolean);
+  const attendedBookings = sessionIds.length
+    ? await adminApi(`bookings?status=eq.attended&session_id=in.(${sessionIds.join(",")})&select=session_id`)
+    : [];
+  const attendedSessionIds = new Set(attendedBookings.map((booking) => booking.session_id));
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const name = (id) => {
     const schedule = schedules.find((item) => item.id === id);
     const program = schedule && programs.find((item) => item.id === schedule.program_id);
     return program ? `${program.name} - ${schedule.day_of_week} ${formatTime(schedule.start_time)}` : "-";
   };
-  app.innerHTML = `<div class="admin-crud-header"><h1>Class Sessions</h1></div>${table(["Program / Schedule", "Date", "Status", "Actions"], items.map((session) => `<tr><td>${esc(name(session.schedule_id))}</td><td>${date(session.class_date)}</td><td><span class="status-badge status-${session.status === "scheduled" ? "confirmed" : "cancelled"}">${esc(session.status)}</span></td><td>${button("Attendance", `attendance:${session.id}`)}</td></tr>`).join(""))}`;
+  const statusFor = (session) => {
+    if (session.status === "cancelled") return { label: "Cancelled", className: "cancelled" };
+    if (session.class_date < today) {
+      return attendedSessionIds.has(session.id)
+        ? { label: "Completed", className: "confirmed" }
+        : { label: "Date passed", className: "date-passed" };
+    }
+    return { label: "Scheduled", className: "confirmed" };
+  };
+  app.innerHTML = `<div class="admin-crud-header"><h1>Class Sessions</h1></div>${table(["Program / Schedule", "Date", "Status", "Actions"], items.map((session) => {
+    const status = statusFor(session);
+    return `<tr><td>${esc(name(session.schedule_id))}</td><td>${date(session.class_date)}</td><td><span class="status-badge status-${status.className}">${status.label}</span></td><td>${button("Attendance", `attendance:${session.id}`)}</td></tr>`;
+  }).join(""))}`;
   app.addEventListener("click", (event) => {
     const action = event.target.dataset.action || "";
     if (action.startsWith("attendance:")) attendance(action.slice("attendance:".length));
