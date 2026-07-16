@@ -50,6 +50,34 @@ img, svg {
   display: block;
 }
 
+html {
+  -webkit-tap-highlight-color: rgba(159, 117, 44, 0.2);
+}
+
+a, button, input, select, textarea {
+  touch-action: manipulation;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-visual-discovery);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  background: var(--color-text);
+  color: #fff;
+  left: 1rem;
+  padding: 0.75rem 1rem;
+  position: fixed;
+  top: 1rem;
+  transform: translateY(-200%);
+  z-index: 1000;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
 .container {
   max-width: var(--container-width);
   margin: 0 auto;
@@ -479,6 +507,12 @@ img, svg {
   padding: 12px 16px;
 }
 
+.calendar-load-error {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+}
+
 .program-section {
   padding: 60px 0;
   border-bottom: 1px solid var(--color-border);
@@ -776,8 +810,11 @@ img, svg {
 }
 
 .qr-code {
+  aspect-ratio: 1;
+  height: 200px;
   max-width: 200px;
   margin: 12px auto;
+  object-fit: cover;
   border: 1px solid var(--color-border);
   border-radius: 8px;
 }
@@ -824,7 +861,7 @@ img, svg {
   cursor: pointer;
   font-family: var(--font-body);
   color: var(--color-text-muted);
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .semester-tab:hover {
@@ -1809,10 +1846,18 @@ img, svg {
   font-family: var(--font-body);
 }
 
-.registration-form input:focus,
-.registration-form textarea:focus {
-  outline: none;
+.registration-form input:focus-visible,
+.registration-form textarea:focus-visible {
   border-color: var(--color-visual-discovery);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .readonly-input {
