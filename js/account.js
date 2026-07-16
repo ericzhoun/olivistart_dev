@@ -380,6 +380,25 @@ async function loadMakeupSessions(enrollment) {
   render();
 }
 
+function refreshAfterClaims() {
+  claimEnrollments().then((claimed) => {
+    if (claimed.length > 0) loadData();
+  });
+}
+
+function syncPendingPayments(pending, token) {
+  if (pending.length === 0) return;
+  Promise.all(pending.map(async (enrollment) => {
+    try {
+      return await callFunction("sync-enrollment-payment", { enrollment_id: enrollment.id }, token);
+    } catch {
+      return null;
+    }
+  })).then((results) => {
+    if (results.some((result) => result?.synced)) loadData();
+  });
+}
+
 // ---- data load ----
 async function loadData() {
   state.loading = true;
@@ -395,47 +414,16 @@ async function loadData() {
       return;
     }
 
-    // Claiming is independent of the normal account reads. Run it alongside
-    // them, then re-fetch only when new enrollments were actually claimed.
-    const [ens, bks, claimed] = await Promise.all([
+    const [ens, bks] = await Promise.all([
       apiGet("enrollments?order=created_at.desc", token),
       apiGet("bookings?order=booked_at.desc", token),
-      claimEnrollments(),
     ]);
     state.enrollments = ens;
     state.bookings = bks;
 
-    if (claimed.length > 0) {
-      const [claimedEnrollments, claimedBookings] = await Promise.all([
-        apiGet("enrollments?order=created_at.desc", token),
-        apiGet("bookings?order=booked_at.desc", token),
-      ]);
-      state.enrollments = claimedEnrollments;
-      state.bookings = claimedBookings;
-    }
-
-    // Sync any pending enrollments whose payment may have completed since the
-    // webhook path is unreliable (billing has no webhook forward). If any
-    // flipped to confirmed, reload bookings/sessions so the UI is consistent.
     const pending = state.enrollments.filter((e) => e.status === "pending" && e.id);
-    if (pending.length > 0) {
-      let changed = false;
-      await Promise.all(pending.map(async (e) => {
-        try {
-          const r = await callFunction("sync-enrollment-payment", { enrollment_id: e.id }, token);
-          if (r.synced) changed = true;
-        } catch { /* best-effort; stay pending */ }
-      }));
-      if (changed) {
-        // Re-fetch so statuses, bookings, and sessions reflect the flip.
-        const [ens2, bks2] = await Promise.all([
-          apiGet("enrollments?order=created_at.desc", token),
-          apiGet("bookings?order=booked_at.desc", token),
-        ]);
-        state.enrollments = ens2;
-        state.bookings = bks2;
-      }
-    }
+    refreshAfterClaims();
+    syncPendingPayments(pending, token);
 
     if (state.bookings.length > 0) {
       // Fetch session details for bookings

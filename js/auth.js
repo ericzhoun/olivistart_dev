@@ -1,6 +1,6 @@
 // Auth helpers - email/password and magic-link auth against the Butterbase
 // backend, tokens cached in localStorage. Ported from herfield app/lib/auth.js.
-import { AUTH_BASE, API_BASE } from "./api.js";
+import { AUTH_BASE, API_BASE, fetchWithTimeout } from "./api.js";
 
 const TOKEN_KEY = "olivistart_access_token";
 const REFRESH_KEY = "olivistart_refresh_token";
@@ -39,7 +39,7 @@ export function isAdmin() {
 
 /** Login with email + password */
 export async function login(email, password) {
-  const res = await fetch(`${AUTH_BASE}/login`, {
+  const res = await fetchWithTimeout(`${AUTH_BASE}/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -54,7 +54,7 @@ export async function login(email, password) {
 
 /** Signup with email + password + display name */
 export async function signup(email, password, displayName) {
-  const res = await fetch(`${AUTH_BASE}/signup`, {
+  const res = await fetchWithTimeout(`${AUTH_BASE}/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, display_name: displayName }),
@@ -68,7 +68,7 @@ export async function signup(email, password, displayName) {
 
 /** Email a 6-digit sign-in code (works for new and existing accounts). */
 export async function sendMagicLink(email) {
-  const res = await fetch(`${AUTH_BASE}/magic-link`, {
+  const res = await fetchWithTimeout(`${AUTH_BASE}/magic-link`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
@@ -83,7 +83,7 @@ export async function sendMagicLink(email) {
  * signs into the existing account otherwise. Stores tokens like login().
  */
 export async function verifyMagicLink(email, code) {
-  const res = await fetch(`${AUTH_BASE}/magic-link/verify`, {
+  const res = await fetchWithTimeout(`${AUTH_BASE}/magic-link/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code }),
@@ -104,7 +104,7 @@ export async function claimEnrollments() {
   const token = getToken();
   if (!token) return [];
   try {
-    const res = await fetch(`${API_BASE}/fn/claim-enrollments`, {
+    const res = await fetchWithTimeout(`${API_BASE}/fn/claim-enrollments`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -125,7 +125,7 @@ export async function logout() {
   const token = getToken();
   if (token) {
     try {
-      await fetch(`${AUTH_BASE}/logout`, {
+      await fetchWithTimeout(`${AUTH_BASE}/logout`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -142,7 +142,7 @@ export async function logout() {
 export async function refreshToken() {
   const refresh = getRefreshToken();
   if (!refresh) return null;
-  const res = await fetch(`${AUTH_BASE}/refresh`, {
+  const res = await fetchWithTimeout(`${AUTH_BASE}/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refresh }),

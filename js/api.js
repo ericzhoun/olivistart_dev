@@ -6,6 +6,19 @@ export const AUTH_BASE = `https://api.butterbase.ai/auth/${APP_ID}`;
 export const SITE_URL = "https://olivistart.com";
 export const ADMIN_KEY = "bb_sk_f13dbc117c3c7cb653e416dea8c706be7e800a9e";
 
+export async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error("Request timed out. Please try again.");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 /**
  * Fetch wrapper for Butterbase REST API with public (anon) access.
  * No auth header — relies on RLS public read policies.
@@ -14,7 +27,7 @@ export const ADMIN_KEY = "bb_sk_f13dbc117c3c7cb653e416dea8c706be7e800a9e";
 export async function apiGet(path, token) {
   const headers = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/${path}`, { headers });
+  const res = await fetchWithTimeout(`${API_BASE}/${path}`, { headers });
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   return res.json();
 }
@@ -30,7 +43,7 @@ export async function adminApi(path, options = {}) {
   const method = options.method || "GET";
   const headers = { Authorization: `Bearer ${ADMIN_KEY}`, ...(options.headers || {}) };
   if (options.body) headers["Content-Type"] = "application/json";
-  const res = await fetch(`${API_BASE}/${path}`, {
+  const res = await fetchWithTimeout(`${API_BASE}/${path}`, {
     method,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -45,7 +58,7 @@ export async function adminApi(path, options = {}) {
 export async function callFunction(name, body, token) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}/fn/${name}`, {
+  const res = await fetchWithTimeout(`${API_BASE}/fn/${name}`, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
