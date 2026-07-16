@@ -161,6 +161,9 @@ async function crud(id) {
       const body = Object.fromEntries(data);
       try {
         ["sort_order", "num_classes", "early_bird_discount_pct", "price_cents", "max_seats"].forEach((k) => { if (k in body) body[k] = Number(body[k]) || 0; });
+        ["early_bird_deadline", "start_date", "end_date"].forEach((key) => {
+          if (key in body && !body[key]) body[key] = null;
+        });
         body.active = true;
         if (id === "schedules") {
           const days = data.getAll("days");
@@ -168,7 +171,6 @@ async function crud(id) {
           delete body.days;
           body.price_cents = Math.round(Number(body.price_dollars) * 100);
           delete body.price_dollars;
-          body.early_bird_deadline = body.early_bird_deadline || null;
           const existingSchedules = Array.isArray(editId) ? editId : [];
           if (existingSchedules.length) {
             const existingByDay = new Map(existingSchedules.map((schedule) => [schedule.day_of_week, schedule]));
