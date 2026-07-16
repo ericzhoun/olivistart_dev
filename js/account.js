@@ -1,7 +1,7 @@
 // Account page — enrollments, credits, upcoming classes, make-up booking.
 // Ported from herfield app/account/AccountPageClient.js, compiled to vanilla JS.
 import { apiGet, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
-import { isLoggedIn, getUser, logout, getToken, requireAuth, claimEnrollments } from "./auth.js";
+import { isLoggedIn, getUser, isAdmin, logout, getToken, requireAuth, claimEnrollments } from "./auth.js";
 
 // Require login — redirect to login.html if not authenticated.
 const user = requireAuth();
@@ -91,6 +91,11 @@ function render() {
   const logoutBtn = el("button", "btn btn-sm", "Log Out");
   logoutBtn.onclick = handleLogout;
   header.appendChild(logoutBtn);
+  if (isAdmin()) {
+    const adminLink = el("a", "btn btn-sm", "Open Admin CMS");
+    adminLink.href = "admin.html";
+    header.appendChild(adminLink);
+  }
   root.appendChild(header);
 
   if (paymentStatus === "success") {
