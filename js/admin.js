@@ -171,11 +171,11 @@ async function crud(id) {
         body.active = true;
         if (id === "schedules") {
           const days = data.getAll("days");
-          if (!days.length) throw new Error("Select at least one day of the week.");
+          const existingSchedules = Array.isArray(editId) ? editId : [];
+          if (!days.length && !existingSchedules.length) throw new Error("Select at least one day of the week.");
           delete body.days;
           body.price_cents = Math.round(Number(body.price_dollars) * 100);
           delete body.price_dollars;
-          const existingSchedules = Array.isArray(editId) ? editId : [];
           if (existingSchedules.length) {
             const existingByDay = new Map(existingSchedules.map((schedule) => [schedule.day_of_week, schedule]));
             const selectedDays = new Set(days);
