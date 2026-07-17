@@ -535,6 +535,14 @@ a, button, input, select, textarea {
   padding: 40px;
 }
 
+.program-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  float: none;
+  object-fit: contain;
+}
+
 .program-visual-discovery .program-visual { background: #fbe3ec; }
 .program-creative-foundations .program-visual { background: #eef0e2; }
 .program-portfolio-studio .program-visual { background: #f8ecd8; }
@@ -762,14 +770,6 @@ a, button, input, select, textarea {
 
   .program-visual {
     padding: 24px;
-  }
-
-  .program-photo {
-    display: block;
-    width: 100%;
-    height: auto;
-    float: none;
-    object-fit: contain;
   }
 
   .program-section.reverse .program-visual {

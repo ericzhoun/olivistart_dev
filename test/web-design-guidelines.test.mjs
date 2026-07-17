@@ -69,6 +69,10 @@ test("homepage presents the complete Programs flow in the revised order", async 
   }
 
   assert.match(index, /assets\/art-class\/artPortfolio1\.jpg/);
+  assert.match(
+    index,
+    /src="assets\/art-class\/artPortfolio1\.jpg"\s+alt="Colorful student painting" width="1592" height="1318"/,
+  );
   assert.match(index, /<h2>Young Photographer Camp<\/h2>/);
   assert.doesNotMatch(index, /class="teaser-grid"/);
 });
@@ -76,6 +80,10 @@ test("homepage presents the complete Programs flow in the revised order", async 
 test("homepage anchors clear the sticky navigation", async () => {
   const css = await read("css/style.css");
   assert.match(css, /#programs,\s*\.program-section\s*\{[^}]*scroll-margin-top:\s*88px/s);
+
+  const programPhotoRule = css.indexOf(".program-photo {");
+  const mobileProgramLayout = css.indexOf("@media (max-width: 800px)");
+  assert.ok(programPhotoRule !== -1 && programPhotoRule < mobileProgramLayout);
 });
 
 test("auth fields include meaningful names, autocomplete, and live status", async () => {
