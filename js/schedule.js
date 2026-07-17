@@ -112,20 +112,6 @@ function render() {
     return;
   }
 
-  // Legend
-  const legend = el("div", "calendar-legend");
-  state.programs.forEach((p) => {
-    const color = getColorForProgram(p.id, state.programs);
-    const item = el("span", "legend-item");
-    const dot = el("span", "legend-dot");
-    dot.style.background = color.bg;
-    dot.style.borderColor = color.border;
-    item.appendChild(dot);
-    item.appendChild(document.createTextNode(p.name));
-    legend.appendChild(item);
-  });
-  root.appendChild(legend);
-
   // ---- Desktop weekly grid ----
   const byDay = {};
   DAYS.forEach((d) => (byDay[d] = []));
