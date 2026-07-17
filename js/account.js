@@ -262,6 +262,8 @@ function renderEnrollmentCard(en) {
   cardHeader.appendChild(statusCol);
   card.appendChild(cardHeader);
 
+  card.appendChild(renderEnrollmentStudentAssignment(en));
+
   // Credit balance
   if (en.status === "confirmed") {
     const credit = el("div", `credit-balance ${creditBalance < 0 ? "credit-negative" : "credit-positive"}`);
@@ -323,6 +325,56 @@ function renderEnrollmentCard(en) {
   }
 
   return card;
+}
+
+function renderEnrollmentStudentAssignment(en) {
+  const section = el("div", "enrollment-student-assignment");
+  const assignedStudent = state.students.find((student) => student.id === en.student_id);
+
+  if (state.students.length === 0) {
+    section.appendChild(el("p", "muted", "Add this student to associate the enrollment with their profile."));
+    const addStudent = el("button", "btn btn-sm btn-secondary", "Add Student");
+    addStudent.onclick = () => {
+      state.currentTab = "students";
+      state.showStudentForm = true;
+      state.editingStudent = null;
+      render();
+    };
+    section.appendChild(addStudent);
+    return section;
+  }
+
+  const label = el("label", "", "Associate with student");
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", "Associate enrollment with student");
+  if (!assignedStudent) {
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Choose a student";
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+  }
+  state.students.forEach((student) => {
+    const option = document.createElement("option");
+    option.value = student.id;
+    option.textContent = student.name;
+    option.selected = student.id === en.student_id;
+    select.appendChild(option);
+  });
+  label.appendChild(select);
+  section.appendChild(label);
+
+  if (assignedStudent) {
+    section.appendChild(el("p", "muted", `Currently associated with ${escapeHtml(assignedStudent.name)}.`));
+  }
+
+  const save = el("button", "btn btn-sm btn-secondary", assignedStudent ? "Change Student" : "Associate Student");
+  save.disabled = !select.value;
+  select.onchange = () => { save.disabled = !select.value; };
+  save.onclick = () => assignEnrollmentStudent(en, select.value);
+  section.appendChild(save);
+  return section;
 }
 
 function renderMakeupSection(en) {
@@ -649,6 +701,19 @@ async function handleDeleteStudent(studentId) {
     await callFunction("manage-students", { action: "delete", id: studentId }, token);
     state.students = state.students.filter((s) => s.id !== studentId);
     state.artworkPhotos = state.artworkPhotos.filter((p) => p.student_id !== studentId);
+    render();
+  } catch (err) {
+    showActionError(err.message);
+  }
+}
+
+async function assignEnrollmentStudent(en, studentId) {
+  try {
+    const token = await refreshToken();
+    const data = await callFunction("manage-students", {
+      action: "assign-enrollment", enrollment_id: en.id, student_id: studentId,
+    }, token);
+    en.student_id = data.enrollment.student_id;
     render();
   } catch (err) {
     showActionError(err.message);

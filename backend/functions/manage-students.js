@@ -17,6 +17,7 @@ export async function handler(req, ctx) {
   if (action === "add") return add(ctx, body);
   if (action === "update") return update(ctx, body, isAdminUser);
   if (action === "delete") return del(ctx, body, isAdminUser);
+  if (action === "assign-enrollment") return assignEnrollment(ctx, body);
   return json({ error: "Unknown action" }, 400);
 }
 
@@ -83,6 +84,26 @@ async function del(ctx, body, isAdminUser) {
   const res = await ctx.db.query(`DELETE FROM students WHERE ${where}`, values);
   if ((res.rowCount || 0) === 0) return json({ error: "Student not found" }, 404);
   return json({ deleted: true }, 200);
+}
+
+// An enrollment may only be linked to one of the caller's students. Keeping
+// both ownership checks in this statement prevents a parent from attaching a
+// child they do not own or modifying another parent's enrollment.
+async function assignEnrollment(ctx, body) {
+  const enrollmentId = str(body.enrollment_id);
+  const studentId = str(body.student_id);
+  if (!enrollmentId) return json({ error: "Enrollment id is required" }, 400);
+  if (!studentId) return json({ error: "Student id is required" }, 400);
+
+  const res = await ctx.db.query(
+    `UPDATE enrollments SET student_id = $1
+     WHERE id = $2 AND user_id = $3
+       AND EXISTS (SELECT 1 FROM students WHERE id = $1 AND user_id = $3)
+     RETURNING id, student_id`,
+    [studentId, enrollmentId, ctx.user.id]
+  );
+  if (res.rows.length === 0) return json({ error: "Enrollment or student not found" }, 404);
+  return json({ enrollment: res.rows[0] }, 200);
 }
 
 function isAdmin(email) {

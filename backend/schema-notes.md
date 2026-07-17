@@ -30,3 +30,10 @@ payload; the endpoint treats omitted tables as drops and refuses them without
   never needs direct INSERT/DELETE on this table.
 - New functions: `manage-account`, `manage-students`, `manage-artwork`
   (all `auth: required`, `allow_service_key_impersonation: false`).
+
+## 2026-07-16 - enrollment student association (migration_id 28)
+
+- Added nullable `enrollments.student_id` foreign key to `students.id` with
+  `ON DELETE SET NULL`, plus `idx_enrollments_student` for student enrollment
+  lookups. Existing enrollments remain intact until their parent associates
+  them from the account page.
