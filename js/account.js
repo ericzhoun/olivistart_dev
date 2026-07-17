@@ -18,11 +18,29 @@ const state = {
   sessions: [], // session rows for bookings
   schedules: [],
   programs: [],
+  students: [],
+  artworkPhotos: [], // artwork metadata rows loaded for display
   loading: true,
   error: "",
   actionError: "",
+  currentTab: "enrollments",
   // make-up UI state, keyed by enrollment id
   showMakeup: {}, // { [enrollmentId]: { loading, sessions: [] } | false }
+  // profile section state
+  profileSaving: false,
+  // change-password UI state
+  pwStep: "idle", // "idle" | "code-sent" | "confirming"
+  pwLoading: false,
+  pwError: "",
+  pwSuccess: false,
+  // student form state
+  showStudentForm: false,
+  editingStudent: null, // student object being edited, or null for add
+  studentFormSaving: false,
+  studentFormError: "",
+  // artwork upload state
+  uploadingForStudent: null, // student id currently uploading, or null
+  uploadProgress: null,
 };
 
 const root = document.getElementById("account-root");
@@ -116,6 +134,40 @@ function render() {
     root.appendChild(b);
   }
 
+  // Tab bar
+  const tabs = el("div", "account-tabs");
+  const tabItems = [
+    { key: "enrollments", label: "My Enrollments" },
+    { key: "profile", label: "Profile & Security" },
+    { key: "students", label: "Students" },
+    { key: "artwork", label: "Artwork" },
+  ];
+  tabItems.forEach((t) => {
+    const btn = el("button", `account-tab${state.currentTab === t.key ? " is-active" : ""}`, t.label);
+    btn.onclick = () => { state.currentTab = t.key; render(); };
+    tabs.appendChild(btn);
+  });
+  root.appendChild(tabs);
+
+  if (state.currentTab === "enrollments") {
+    renderEnrollmentsTab();
+    return;
+  }
+  if (state.currentTab === "profile") {
+    renderProfileTab();
+    return;
+  }
+  if (state.currentTab === "students") {
+    renderStudentsTab();
+    return;
+  }
+  if (state.currentTab === "artwork") {
+    renderArtworkTab();
+    return;
+  }
+}
+
+function renderEnrollmentsTab() {
   root.appendChild(el("h3", "", "My Enrollments"));
 
   if (state.loading) {
@@ -280,6 +332,459 @@ function renderMakeupSection(en) {
     section.appendChild(list);
   }
   return section;
+}
+
+// ==== Profile & Security Tab ====
+function renderProfileTab() {
+  // Contact info section
+  root.appendChild(el("h3", "", "Contact Information"));
+
+  // Pull first enrollment's contact fields as initial values.
+  const en = state.enrollments[0] || {};
+  const form = el("div", "profile-form");
+
+  const fields = [
+    { key: "parent_name", label: "Parent / Guardian Name", value: en.parent_name || "" },
+    { key: "student_phone", label: "Phone", value: en.student_phone || "" },
+    { key: "emergency_contact", label: "Emergency Contact", value: en.emergency_contact || "" },
+    { key: "allergies", label: "Allergies / Notes", value: en.allergies || "" },
+  ];
+  fields.forEach((f) => {
+    const label = el("label", "", f.label);
+    let input = document.createElement("input");
+    if (f.key === "allergies") {
+      input = document.createElement("textarea");
+      input.rows = 2;
+    } else {
+      input.type = "text";
+    }
+    input.name = f.key;
+    input.value = f.value;
+    if (state.profileSaving) input.disabled = true;
+    label.appendChild(input);
+    form.appendChild(label);
+  });
+  const saveBtn = el("button", "btn btn-sm", state.profileSaving ? "Saving…" : "Save Contact Info");
+  saveBtn.disabled = state.profileSaving;
+  saveBtn.onclick = handleSaveContact;
+  form.appendChild(saveBtn);
+  if (state.actionError) form.appendChild(el("p", "auth-error action-error", state.actionError));
+  root.appendChild(form);
+
+  // Change password section
+  root.appendChild(el("h3", "", "Change Password"));
+  const pwSection = el("div", "password-section");
+
+  if (state.pwSuccess) {
+    pwSection.appendChild(el("p", "auth-info", "✓ Password changed successfully. Please log in again."));
+    const loginLink = el("a", "btn btn-sm", "Log In");
+    loginLink.href = "login.html";
+    pwSection.appendChild(loginLink);
+    root.appendChild(pwSection);
+    return;
+  }
+
+  if (state.pwError) pwSection.appendChild(el("p", "auth-error", state.pwError));
+
+  if (state.pwStep === "idle") {
+    const desc = el("p", "muted", "We'll email a 6-digit code to " + escapeHtml(state.user.email) + " to verify your identity.");
+    pwSection.appendChild(desc);
+    const sendBtn = el("button", "btn btn-sm", state.pwLoading ? "Sending…" : "Send Reset Code");
+    sendBtn.disabled = state.pwLoading;
+    sendBtn.onclick = handlePwInit;
+    pwSection.appendChild(sendBtn);
+  } else {
+    const codeLabel = el("label", "", "6-digit code");
+    const codeInput = document.createElement("input");
+    codeInput.type = "text";
+    codeInput.name = "code";
+    codeInput.inputMode = "numeric";
+    codeInput.maxLength = 6;
+    codeInput.placeholder = "123456";
+    codeInput.className = "code-input";
+    codeLabel.appendChild(codeInput);
+    pwSection.appendChild(codeLabel);
+
+    const pwLabel = el("label", "", "New password");
+    const pwInput = document.createElement("input");
+    pwInput.type = "password";
+    pwInput.name = "new_password";
+    pwInput.required = true;
+    pwInput.placeholder = "At least 8 characters";
+    pwLabel.appendChild(pwInput);
+    pwSection.appendChild(pwLabel);
+
+    const pwLabel2 = el("label", "", "Confirm new password");
+    const pwInput2 = document.createElement("input");
+    pwInput2.type = "password";
+    pwInput2.name = "new_password_confirm";
+    pwInput2.required = true;
+    pwInput2.placeholder = "Re-enter password";
+    pwLabel2.appendChild(pwInput2);
+    pwSection.appendChild(pwLabel2);
+
+    const confirmBtn = el("button", "btn btn-sm", state.pwLoading ? "Resetting…" : "Reset Password");
+    confirmBtn.disabled = state.pwLoading;
+    confirmBtn.onclick = () => handlePwConfirm(codeInput.value, pwInput.value, pwInput2.value);
+    pwSection.appendChild(confirmBtn);
+
+    const resend = el("button", "btn btn-sm btn-secondary", "Resend code");
+    resend.style.marginTop = "0.5rem";
+    resend.onclick = handlePwInit;
+    pwSection.appendChild(resend);
+  }
+  root.appendChild(pwSection);
+}
+
+async function handleSaveContact() {
+  state.profileSaving = true;
+  state.actionError = "";
+  render();
+  // Read current values from the rendered form (the DOM values were just set by render).
+  const form = root.querySelector(".profile-form");
+  if (!form) return;
+  const body = {};
+  ["parent_name", "student_phone", "emergency_contact", "allergies"].forEach((key) => {
+    const input = form.querySelector(`[name="${key}"]`);
+    body[key] = input ? input.value.trim() : "";
+  });
+  try {
+    const token = await refreshToken();
+    await callFunction("manage-account", { action: "update-contact", ...body }, token);
+    state.actionError = "";
+    await loadData(); // refresh enrollments to pick up updated values
+  } catch (err) {
+    showActionError(err.message);
+  } finally {
+    state.profileSaving = false;
+    render();
+  }
+}
+
+async function handlePwInit() {
+  state.pwLoading = true;
+  state.pwError = "";
+  render();
+  try {
+    const token = await refreshToken();
+    await callFunction("manage-account", { action: "change-password-init" }, token);
+    state.pwStep = "code-sent";
+  } catch (err) {
+    state.pwError = err.message;
+  } finally {
+    state.pwLoading = false;
+    render();
+  }
+}
+
+async function handlePwConfirm(code, newPassword, confirmPassword) {
+  state.pwLoading = true;
+  state.pwError = "";
+  render();
+  if (!code || code.length < 6) { state.pwError = "Enter the 6-digit code"; state.pwLoading = false; render(); return; }
+  if (!newPassword || newPassword.length < 8) { state.pwError = "Password must be at least 8 characters"; state.pwLoading = false; render(); return; }
+  if (newPassword !== confirmPassword) { state.pwError = "Passwords do not match"; state.pwLoading = false; render(); return; }
+  try {
+    const token = await refreshToken();
+    await callFunction("manage-account", { action: "change-password-confirm", code, new_password: newPassword }, token);
+    state.pwSuccess = true;
+  } catch (err) {
+    state.pwError = err.message;
+  } finally {
+    state.pwLoading = false;
+    render();
+  }
+}
+
+// ==== Students Tab ====
+function renderStudentsTab() {
+  const section = el("div", "students-section");
+  section.appendChild(el("h3", "", "My Students"));
+
+  if (state.students.length === 0 && !state.showStudentForm) {
+    section.appendChild(el("p", "muted", "Add your children to manage their profiles and see their artwork."));
+  }
+
+  // Student cards
+  state.students.forEach((s) => {
+    const card = el("div", "student-card");
+    const info = el("div", "student-info");
+    info.appendChild(el("h4", "", escapeHtml(s.name)));
+    const details = [];
+    if (s.age) details.push(`Age: ${escapeHtml(s.age)}`);
+    if (s.dob) details.push(`DOB: ${escapeHtml(s.dob)}`);
+    if (s.notes) details.push(escapeHtml(s.notes));
+    info.appendChild(el("p", "muted", details.join(" · ") || "No details"));
+    card.appendChild(info);
+
+    const actions = el("div", "student-card-actions");
+    const editBtn = el("button", "btn btn-sm btn-secondary", "Edit");
+    editBtn.onclick = () => { state.editingStudent = s; state.showStudentForm = true; state.studentFormError = ""; render(); };
+    actions.appendChild(editBtn);
+    const delBtn = el("button", "btn btn-sm btn-danger", "Delete");
+    delBtn.onclick = () => handleDeleteStudent(s.id);
+    actions.appendChild(delBtn);
+    card.appendChild(actions);
+    section.appendChild(card);
+  });
+
+  // Add / Edit form
+  if (state.showStudentForm) {
+    const form = el("div", "student-form");
+    form.appendChild(el("h4", "", state.editingStudent ? "Edit Student" : "Add Student"));
+    if (state.studentFormError) form.appendChild(el("p", "auth-error", state.studentFormError));
+
+    const nameL = el("label", "", "Name");
+    const nameI = document.createElement("input"); nameI.type = "text"; nameI.name = "name";
+    nameI.value = state.editingStudent?.name || ""; nameI.required = true;
+    if (state.studentFormSaving) nameI.disabled = true;
+    nameL.appendChild(nameI); form.appendChild(nameL);
+
+    const ageL = el("label", "", "Age");
+    const ageI = document.createElement("input"); ageI.type = "text"; ageI.name = "age";
+    ageI.value = state.editingStudent?.age || "";
+    ageL.appendChild(ageI); form.appendChild(ageL);
+
+    const dobL = el("label", "", "Date of Birth");
+    const dobI = document.createElement("input"); dobI.type = "text"; dobI.name = "dob";
+    dobI.value = state.editingStudent?.dob || ""; dobI.placeholder = "e.g. 2018-03-15";
+    dobL.appendChild(dobI); form.appendChild(dobL);
+
+    const notesL = el("label", "", "Notes (allergies, interests)");
+    const notesI = document.createElement("textarea"); notesI.name = "notes"; notesI.rows = 2;
+    notesI.value = state.editingStudent?.notes || "";
+    notesL.appendChild(notesI); form.appendChild(notesL);
+
+    const saveBtn = el("button", "btn btn-sm", state.studentFormSaving ? "Saving…" : "Save");
+    saveBtn.disabled = state.studentFormSaving;
+    saveBtn.onclick = () => handleSaveStudent(
+      form.querySelector('[name="name"]').value.trim(),
+      form.querySelector('[name="age"]').value.trim(),
+      form.querySelector('[name="dob"]').value.trim(),
+      form.querySelector('[name="notes"]').value.trim()
+    );
+    form.appendChild(saveBtn);
+
+    const cancelBtn = el("button", "btn btn-sm btn-secondary", "Cancel");
+    cancelBtn.onclick = () => { state.showStudentForm = false; state.editingStudent = null; state.studentFormError = ""; render(); };
+    form.appendChild(cancelBtn);
+    section.appendChild(form);
+  } else {
+    const addBtn = el("button", "btn btn-sm", "Add Student");
+    addBtn.onclick = () => { state.showStudentForm = true; state.editingStudent = null; state.studentFormError = ""; render(); };
+    section.appendChild(addBtn);
+  }
+  root.appendChild(section);
+}
+
+async function loadStudents() {
+  try {
+    const token = await refreshToken();
+    const data = await callFunction("manage-students", { action: "list" }, token);
+    state.students = data.students || [];
+  } catch (err) {
+    console.warn("Could not load students", err);
+    state.students = [];
+  }
+}
+
+async function handleSaveStudent(name, age, dob, notes) {
+  if (!name) { state.studentFormError = "Name is required"; render(); return; }
+  state.studentFormSaving = true;
+  state.studentFormError = "";
+  render();
+  try {
+    const token = await refreshToken();
+    if (state.editingStudent) {
+      await callFunction("manage-students", { action: "update", id: state.editingStudent.id, name, age, dob, notes }, token);
+    } else {
+      await callFunction("manage-students", { action: "add", name, age, dob, notes }, token);
+    }
+    state.showStudentForm = false;
+    state.editingStudent = null;
+    await loadStudents();
+    if (state.currentTab === "artwork") await loadArtwork();
+  } catch (err) {
+    state.studentFormError = err.message;
+  } finally {
+    state.studentFormSaving = false;
+    render();
+  }
+}
+
+async function handleDeleteStudent(studentId) {
+  if (!confirm("Delete this student and all their artwork photos?")) return;
+  try {
+    const token = await refreshToken();
+    await callFunction("manage-students", { action: "delete", id: studentId }, token);
+    state.students = state.students.filter((s) => s.id !== studentId);
+    state.artworkPhotos = state.artworkPhotos.filter((p) => p.student_id !== studentId);
+    render();
+  } catch (err) {
+    showActionError(err.message);
+  }
+}
+
+// ==== Artwork Tab ====
+function renderArtworkTab() {
+  const section = el("div", "artwork-section");
+  section.appendChild(el("h3", "", "Children's Artwork"));
+
+  if (state.students.length === 0) {
+    section.appendChild(el("p", "muted", "Add students first to see and upload artwork. Go to the Students tab to add your children."));
+    root.appendChild(section);
+    return;
+  }
+
+  // Student artwork gallery — one gallery per student.
+  state.students.forEach((student) => {
+    const photos = state.artworkPhotos.filter((p) => p.student_id === student.id);
+    const gallery = el("div", "artwork-gallery");
+
+    const header = el("div", "artwork-gallery-header");
+    header.appendChild(el("h4", "", escapeHtml(student.name)));
+
+    // Upload button
+    const uploadBtn = el("button", "btn btn-sm",
+      state.uploadingForStudent === student.id ? "Uploading…" : "Upload Photo");
+    uploadBtn.disabled = state.uploadingForStudent === student.id;
+    uploadBtn.onclick = () => handleArtworkUpload(student.id);
+    header.appendChild(uploadBtn);
+    gallery.appendChild(header);
+
+    if (photos.length === 0) {
+      gallery.appendChild(el("p", "muted", "No photos yet."));
+    } else {
+      const grid = el("div", "artwork-grid");
+      photos.forEach((photo) => {
+        const thumb = el("button", "artwork-thumb", "");
+        thumb.type = "button";
+        thumb.setAttribute("aria-label", photo.caption ? `Artwork: ${escapeHtml(photo.caption)}` : "Student artwork");
+        if (photo.download_url) {
+          const img = document.createElement("img");
+          img.src = photo.download_url;
+          img.alt = photo.caption || "Student artwork";
+          img.loading = "lazy";
+          thumb.appendChild(img);
+        } else {
+          thumb.appendChild(el("span", "muted", "Loading…"));
+        }
+        thumb.onclick = () => openLightbox(photo.download_url || "", photo.caption || "Student artwork");
+
+        // Delete button (overlay)
+        const del = el("button", "artwork-thumb-delete", "×");
+        del.type = "button";
+        del.setAttribute("aria-label", "Delete photo");
+        del.onclick = (e) => { e.stopPropagation(); handleDeleteArtwork(photo.id, student.id); };
+        thumb.appendChild(del);
+
+        if (photo.caption) {
+          const cap = el("span", "artwork-thumb-caption", escapeHtml(photo.caption));
+          thumb.appendChild(cap);
+        }
+        grid.appendChild(thumb);
+      });
+      gallery.appendChild(grid);
+    }
+    section.appendChild(gallery);
+  });
+
+  root.appendChild(section);
+}
+
+async function loadArtwork() {
+  if (state.students.length === 0) { state.artworkPhotos = []; return; }
+  try {
+    const token = await refreshToken();
+    // Fetch all artwork photo metadata (RLS filters to own students).
+    const photos = await apiGet("artwork_photos?order=created_at.desc", token);
+    if (photos.length === 0) { state.artworkPhotos = []; return; }
+    // Resolve download URLs in parallel.
+    const photoIds = photos.map((p) => p.id);
+    const data = await callFunction("manage-artwork", { action: "download-urls", photo_ids: photoIds }, token);
+    state.artworkPhotos = data.photos || [];
+  } catch (err) {
+    console.warn("Could not load artwork", err);
+    state.artworkPhotos = [];
+  }
+}
+
+async function handleArtworkUpload(studentId) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) { showActionError("File too large (10 MB max)"); return; }
+    state.uploadingForStudent = studentId;
+    render();
+    try {
+      const token = await refreshToken();
+      // Request presigned upload URL.
+      const upData = await callFunction("manage-artwork", {
+        action: "upload-url",
+        student_id: studentId,
+        filename: file.name,
+        content_type: file.type || "image/jpeg",
+        size_bytes: file.size,
+      }, token);
+      // Upload the file bytes to the presigned URL.
+      await fetch(upData.upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "image/jpeg" },
+        body: file,
+      });
+      // Refresh the artwork list.
+      await loadArtwork();
+    } catch (err) {
+      showActionError(err.message);
+    } finally {
+      state.uploadingForStudent = null;
+      render();
+    }
+  };
+  input.click();
+}
+
+async function handleDeleteArtwork(photoId, studentId) {
+  if (!confirm("Delete this photo?")) return;
+  try {
+    const token = await refreshToken();
+    await callFunction("manage-artwork", { action: "delete", photo_id: photoId }, token);
+    state.artworkPhotos = state.artworkPhotos.filter((p) => p.id !== photoId);
+    render();
+  } catch (err) {
+    showActionError(err.message);
+  }
+}
+
+// ==== Lightbox ====
+function initLightbox() {
+  const dialog = document.getElementById("account-lightbox");
+  const lightboxImg = document.getElementById("account-lightbox-img");
+  const closeBtn = document.getElementById("account-lightbox-close");
+  if (!dialog || !lightboxImg || !closeBtn) return;
+  closeBtn.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  // Store ref so openLightbox can use it.
+  window._accountLightbox = dialog;
+  window._accountLightboxImg = lightboxImg;
+}
+
+function openLightbox(src, alt) {
+  const dialog = window._accountLightbox;
+  const img = window._accountLightboxImg;
+  if (!dialog || !img) return;
+  img.src = src;
+  img.alt = alt;
+  dialog.showModal();
+}
+
+// ==== Utilities ====
+function escapeHtml(s) {
+  if (!s) return "";
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 // ---- actions ----
@@ -459,6 +964,10 @@ async function loadData() {
     refreshAfterClaims();
     syncPendingPayments(pending, token);
     void loadAccountDetails(token, version);
+
+    // Load student profiles and artwork for the new tabs.
+    await loadStudents();
+    await loadArtwork();
   } catch (err) {
     state.error = err.message;
   } finally {
@@ -468,6 +977,7 @@ async function loadData() {
 }
 
 loadData();
+initLightbox();
 } else {
   const root = document.getElementById("account-root");
   const here = encodeURIComponent(window.location.pathname + window.location.search);

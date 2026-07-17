@@ -17,3 +17,16 @@ payload; the endpoint treats omitted tables as drops and refuses them without
 - Added nullable `class_schedules.session_type` (`text`). New schedules store
   `standard`, `extended`, or `full`; existing schedules continue to infer the
   session type from their start and end times.
+
+## 2026-07-16 - students + artwork_photos (migration_id 23)
+
+- New `students` table: parent-owned child profiles (`user_id`, `name`, `age`,
+  `dob`, `notes`). RLS user-isolation on `user_id` with auto-populate trigger.
+- New `artwork_photos` table: photo metadata (`student_id` -> students CASCADE,
+  `storage_object_id` durable Butterbase Storage objectId, `caption`,
+  `uploaded_by`). RLS enabled with a SELECT policy that lets a parent read
+  rows whose student they own (`EXISTS students.user_id = current_user_id()`).
+  Writes go through the `manage-artwork` function (service role) so the parent
+  never needs direct INSERT/DELETE on this table.
+- New functions: `manage-account`, `manage-students`, `manage-artwork`
+  (all `auth: required`, `allow_service_key_impersonation: false`).

@@ -26,3 +26,20 @@ test("weekly schedule retains multiple classes sharing a day and start time", as
 
   assert.deepEqual(rows["Saturday|10:00"].map((schedule) => schedule.id), ["photography", "visual-discovery"]);
 });
+
+test("age group labels are prefixed with 'Age' when they are a bare digit range", async () => {
+  const script = await readSchedule();
+  const match = script.match(/export function schedulesBySlot[\s\S]*?\n}\n[\s\S]*?function formatAgeGroup[\s\S]*?\n}\n/);
+  assert.ok(match, "formatAgeGroup helper should be defined");
+
+  const moduleUrl = new URL(`data:text/javascript,${encodeURIComponent(`${match[0]}\nexport default formatAgeGroup;`)}`);
+  const { default: formatAgeGroup } = await import(moduleUrl);
+
+  assert.equal(formatAgeGroup("7-12"), "Age 7-12");
+  assert.equal(formatAgeGroup("6-16"), "Age 6-16");
+  assert.equal(formatAgeGroup("6–10"), "Age 6–10");
+  // Already labeled or non-numeric values pass through unchanged.
+  assert.equal(formatAgeGroup("Age 7-12"), "Age 7-12");
+  assert.equal(formatAgeGroup("Teens"), "Teens");
+  assert.equal(formatAgeGroup(""), "");
+});

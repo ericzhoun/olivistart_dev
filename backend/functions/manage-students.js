@@ -1,0 +1,103 @@
+// Student profile management (CRUD). Parents manage a list of their children
+// independent of enrollments. Admins (Olivia) can manage any student.
+// HTTP trigger: auth "required". Writes run as the end user (RLS-enforced);
+// ownership is re-checked server-side as defense in depth.
+export async function handler(req, ctx) {
+  if (!ctx.user) return json({ error: "Authentication required" }, 401);
+
+  let body;
+  try { body = await req.json(); } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const action = body.action;
+  const isAdminUser = isAdmin(ctx.user.email);
+
+  if (action === "list") return list(ctx, isAdminUser);
+  if (action === "add") return add(ctx, body);
+  if (action === "update") return update(ctx, body, isAdminUser);
+  if (action === "delete") return del(ctx, body, isAdminUser);
+  return json({ error: "Unknown action" }, 400);
+}
+
+async function list(ctx, isAdminUser) {
+  // Admin sees all students (so Olivia can tag artwork to any child); parents
+  // see only their own via the RLS user-isolation policy.
+  const res = isAdminUser
+    ? await ctx.db.query(`SELECT * FROM students ORDER BY created_at DESC`)
+    : await ctx.db.query(
+        `SELECT * FROM students WHERE user_id = $1 ORDER BY created_at DESC`,
+        [ctx.user.id]
+      );
+  return json({ students: res.rows }, 200);
+}
+
+async function add(ctx, body) {
+  const name = str(body.name);
+  if (!name) return json({ error: "Student name is required" }, 400);
+
+  const res = await ctx.db.query(
+    `INSERT INTO students (user_id, name, age, dob, notes)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [ctx.user.id, name, str(body.age), str(body.dob), str(body.notes)]
+  );
+  return json({ student: res.rows[0] }, 200);
+}
+
+async function update(ctx, body, isAdminUser) {
+  const id = str(body.id);
+  if (!id) return json({ error: "Student id is required" }, 400);
+
+  const fields = {};
+  if (str(body.name) !== null) fields.name = str(body.name);
+  if (body.age !== undefined) fields.age = str(body.age);
+  if (body.dob !== undefined) fields.dob = str(body.dob);
+  if (body.notes !== undefined) fields.notes = str(body.notes);
+
+  const keys = Object.keys(fields);
+  if (keys.length === 0) return json({ error: "No fields to update" }, 400);
+
+  const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
+  const values = keys.map((k) => fields[k]);
+  values.push(id);
+  // Ownership guard: non-admins can only update their own students.
+  const where = isAdminUser ? `id = $${values.length}` : `id = $${values.length} AND user_id = $${values.length + 1}`;
+  if (!isAdminUser) values.push(ctx.user.id);
+
+  const res = await ctx.db.query(
+    `UPDATE students SET ${sets} WHERE ${where} RETURNING *`,
+    values
+  );
+  if (res.rows.length === 0) return json({ error: "Student not found" }, 404);
+  return json({ student: res.rows[0] }, 200);
+}
+
+async function del(ctx, body, isAdminUser) {
+  const id = str(body.id);
+  if (!id) return json({ error: "Student id is required" }, 400);
+
+  const values = [id];
+  const where = isAdminUser ? `id = $1` : `id = $1 AND user_id = $2`;
+  if (!isAdminUser) values.push(ctx.user.id);
+
+  const res = await ctx.db.query(`DELETE FROM students WHERE ${where}`, values);
+  if ((res.rowCount || 0) === 0) return json({ error: "Student not found" }, 404);
+  return json({ deleted: true }, 200);
+}
+
+function isAdmin(email) {
+  return email === "herfield8@gmail.com" || email === "lightbyolivia@gmail.com";
+}
+
+function str(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
+}
+
+function json(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}

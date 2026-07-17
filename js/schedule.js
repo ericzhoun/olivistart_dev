@@ -29,6 +29,17 @@ export function schedulesBySlot(schedules) {
   }, {});
 }
 
+// Format the age group label, e.g. "7-12" -> "Age 7-12".
+// Values that already include a label (e.g. "Age 7-12", "Teens") are returned unchanged.
+function formatAgeGroup(ageGroup) {
+  if (!ageGroup) return "";
+  const trimmed = ageGroup.trim();
+  if (/^\d+[-–]\d+$/.test(trimmed)) {
+    return `Age ${trimmed}`;
+  }
+  return trimmed;
+}
+
 const state = {
   semesters: [],
   programs: [],
@@ -151,7 +162,7 @@ function render() {
         a.appendChild(el("span", "calendar-class-program", prog ? prog.name : "Class"));
         a.appendChild(el("span", "calendar-class-time",
           `${formatTime(sched.start_time)}–${formatTime(sched.end_time)}`));
-        a.appendChild(el("span", "calendar-class-age", sched.age_group));
+        a.appendChild(el("span", "calendar-class-age", formatAgeGroup(sched.age_group)));
         a.appendChild(el("span", "calendar-class-price", formatPrice(sched.price_cents)));
         cell.appendChild(a);
       });
@@ -181,7 +192,7 @@ function render() {
       card.appendChild(header);
       const details = el("div", "calendar-class-mobile-details");
       details.appendChild(el("span", "", `${formatTime(sched.start_time)}–${formatTime(sched.end_time)}`));
-      details.appendChild(el("span", "muted", sched.age_group));
+      details.appendChild(el("span", "muted", formatAgeGroup(sched.age_group)));
       card.appendChild(details);
       list.appendChild(card);
     });

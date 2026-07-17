@@ -25,7 +25,10 @@ CONFIGS=(
   "class-availability|none|/class-availability|false|Public seat availability (confirmed + fresh pending holds) for a schedule."
   "enroll-guard|required|/enroll|false|Logged-in enrollment with server-side pricing, dynamic product, and Stripe Checkout. Redirect URLs point to the static olivistart.com frontend."
   "stripe-webhook|none|/stripe-webhook|false|Payment fulfillment: re-verifies order status via the billing API, then confirms enrollment and creates home bookings. Idempotent.",
-  "sync-enrollment-payment|required|/sync-enrollment-payment|false|On-demand payment sync: reads order status from the billing API as the caller and confirms the enrollment if paid. Called by account/checkout-success pages since billing has no webhook forward."
+  "sync-enrollment-payment|required|/sync-enrollment-payment|false|On-demand payment sync: reads order status from the billing API as the caller and confirms the enrollment if paid. Called by account/checkout-success pages since billing has no webhook forward.",
+  "manage-account|required|/manage-account|false|Account management: update contact info on own enrollments, change password via forgot/reset-password email-code flow.",
+  "manage-students|required|/manage-students|false|Student profile CRUD. Parents manage their own children; admin can manage any.",
+  "manage-artwork|required|/manage-artwork|false|Artwork photo lifecycle: presigned upload/download URLs and delete, gated on student ownership. Storage calls use the service key."
 )
 
 deploy_one() {
