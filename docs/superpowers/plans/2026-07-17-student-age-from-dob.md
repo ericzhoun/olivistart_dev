@@ -127,4 +127,3 @@ Expected: PASS with zero failures.
 git add js/account.js test/enrollment-student-association.test.mjs docs/superpowers/plans/2026-07-17-student-age-from-dob.md
 git commit -m "Calculate student age from date of birth"
 ```
-
