@@ -11,7 +11,7 @@ Make `index.html` the single destination for OliVista's program information. Mov
 The homepage keeps its existing hero at the top. The current condensed "We Offer" teaser is replaced by one Programs area with the `programs` anchor. That area contains, in order:
 
 1. The program introduction combined with the age-to-program mapping table.
-2. The existing philosophy teaser and call-to-action.
+2. The existing philosophy teaser and call-to-action (Change "reach out to learn more or ask about enrolling your child." to "Book now for limited spots available in July"  and change "View Schedule" to "Summer Class Schedule").
 3. The full Visual Discovery section.
 4. The full Young Photographer Camp section.
 5. The full Creative Foundations section.
