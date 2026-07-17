@@ -50,6 +50,12 @@ test("shared styles preserve keyboard focus and reduce motion", async () => {
 
 test("homepage presents the complete Programs flow in the revised order", async () => {
   const index = await read("index.html");
+  assert.match(
+    index,
+    /<section id="programs" class="programs-overview">\s*<div class="container programs-intro">/,
+  );
+  assert.match(index, /<div class="container age-mapping">/);
+
   const orderedMarkers = [
     'id="programs"',
     'class="container age-mapping"',
