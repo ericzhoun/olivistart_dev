@@ -128,3 +128,16 @@ test("content images and controls have stable, meaningful semantics", async () =
   assert.match(portfolio, /class="portfolio-thumb" type="button" aria-label="Open Visual Discovery artwork 1"/);
   assert.doesNotMatch(index, /alt="kids draw"|alt="color painting"/);
 });
+
+test("contact page provides an accessible, responsive studio location map", async () => {
+  const [contact, css] = await Promise.all([read("contact.html"), read("css/style.css")]);
+
+  assert.match(contact, /<section class="contact-location"/);
+  assert.match(contact, />586 Military Way, Palo Alto, CA<\/a>/);
+  assert.match(contact, /href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=586%20Military%20Way%2C%20Palo%20Alto%2C%20CA"/);
+  assert.match(contact, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(contact, /<iframe[^>]*title="Map of OliVista Art Studio at 586 Military Way, Palo Alto, CA"[^>]*loading="lazy"[^>]*referrerpolicy="no-referrer-when-downgrade"/);
+  assert.match(contact, /src="https:\/\/www\.google\.com\/maps\?q=586%20Military%20Way%2C%20Palo%20Alto%2C%20CA&amp;output=embed"/);
+  assert.match(css, /\.contact-map\s*\{[\s\S]*?width:\s*100%[\s\S]*?min-height:\s*360px/);
+  assert.match(css, /@media \(max-width: 600px\)\s*\{[\s\S]*?\.contact-map\s*\{[\s\S]*?min-height:\s*280px/s);
+});
