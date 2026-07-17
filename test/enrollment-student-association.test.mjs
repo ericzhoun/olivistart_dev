@@ -79,6 +79,16 @@ test("student creation rejects missing or invalid dates of birth", async () => {
   }
 });
 
+test("the deployed student API source is self-contained", async () => {
+  const manageStudents = await readFile(
+    new URL("../backend/functions/manage-students.js", import.meta.url),
+    "utf8"
+  );
+
+  assert.doesNotMatch(manageStudents, /^import /m);
+  assert.match(manageStudents, /function calculateStudentAge\(dob, today = new Date\(\)\)/);
+});
+
 test("student updates derive age from date of birth and reject invalid dates", async () => {
   const queries = [];
   const ctx = {

@@ -2,8 +2,6 @@
 // independent of enrollments. Admins (Olivia) can manage any student.
 // HTTP trigger: auth "required". Writes run as the end user (RLS-enforced);
 // ownership is re-checked server-side as defense in depth.
-import { calculateStudentAge } from "../../js/student-age.js";
-
 export async function handler(req, ctx) {
   if (!ctx.user) return json({ error: "Authentication required" }, 401);
 
@@ -122,6 +120,33 @@ function str(v) {
   if (v == null) return null;
   const s = String(v).trim();
   return s === "" ? null : s;
+}
+
+// Butterbase deploys this function as one source file, so DOB validation must
+// remain self-contained while matching the account helper's UTC convention.
+function calculateStudentAge(dob, today = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob || "")) return null;
+
+  const [year, month, day] = dob.split("-").map(Number);
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    birthDate.getUTCFullYear() !== year ||
+    birthDate.getUTCMonth() !== month - 1 ||
+    birthDate.getUTCDate() !== day
+  ) return null;
+
+  const todayDate = new Date(Date.UTC(
+    today.getUTCFullYear(),
+    today.getUTCMonth(),
+    today.getUTCDate()
+  ));
+  if (birthDate > todayDate) return null;
+
+  const age = today.getUTCFullYear() - year;
+  const birthdayHasPassed =
+    today.getUTCMonth() > month - 1 ||
+    (today.getUTCMonth() === month - 1 && today.getUTCDate() >= day);
+  return age - (birthdayHasPassed ? 0 : 1);
 }
 
 function json(obj, status) {
