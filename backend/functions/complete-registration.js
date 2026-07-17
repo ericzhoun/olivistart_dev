@@ -2,7 +2,7 @@
 // HTTP trigger: auth "required". Replaces the former client-side service-key
 // PATCH (the service key must never ship to browsers).
 const FIELDS = [
-  "child_name", "child_age", "child_dob", "parent_name",
+  "child_name", "child_dob", "parent_name",
   "emergency_contact", "allergies", "referred_by",
 ];
 
@@ -18,6 +18,10 @@ export async function handler(req, ctx) {
   if (!body.enrollment_id) {
     return json({ error: "enrollment_id is required" }, 400);
   }
+  const childAge = calculateAge(body.child_dob);
+  if (childAge == null) {
+    return json({ error: "A valid date of birth is required" }, 400);
+  }
 
   const sets = [];
   const values = [];
@@ -27,6 +31,8 @@ export async function handler(req, ctx) {
       sets.push(`${f} = $${values.length}`);
     }
   }
+  values.push(String(childAge));
+  sets.push(`child_age = $${values.length}`);
   values.push(body.enrollment_id, ctx.user.id);
 
   const res = await ctx.db.query(
@@ -42,6 +48,24 @@ export async function handler(req, ctx) {
   }
 
   return json({ id: res.rows[0].id }, 200);
+}
+
+export function calculateAge(dob, today = new Date()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob || "")) return null;
+
+  const [year, month, day] = dob.split("-").map(Number);
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    birthDate.getUTCFullYear() !== year ||
+    birthDate.getUTCMonth() !== month - 1 ||
+    birthDate.getUTCDate() !== day
+  ) return null;
+
+  const age = today.getUTCFullYear() - year;
+  const birthdayHasPassed =
+    today.getUTCMonth() > month - 1 ||
+    (today.getUTCMonth() === month - 1 && today.getUTCDate() >= day);
+  return age - (birthdayHasPassed ? 0 : 1);
 }
 
 function json(obj, status) {

@@ -29,21 +29,27 @@ CONFIGS=(
   "manage-account|required|/manage-account|false|Account management: update contact info on own enrollments, change password via forgot/reset-password email-code flow.",
   "manage-students|required|/manage-students|false|Student profile CRUD. Parents manage their own children; admin can manage any.",
   "manage-artwork|required|/manage-artwork|false|Artwork photo lifecycle: presigned upload/download URLs and delete, gated on student ownership. Storage calls use the service key."
+  "sync-student-ages|none||false|Refreshes enrollment ages from dates of birth once a day."
 )
 
 deploy_one() {
-  local name="$1" auth="$2" path="$3" impersonation="$4" desc="$5"
+  local name="$1" auth="$2" path="$3" impersonation="$4" desc="$5" cron="${6:-}"
   local file="$DIR/$name.js"
   [[ -f "$file" ]] || { echo "error: $file not found" >&2; return 1; }
 
-  python3 - "$name" "$auth" "$path" "$impersonation" "$desc" "$file" <<'PY' > /tmp/bb-deploy-payload.json
+  python3 - "$name" "$auth" "$path" "$impersonation" "$desc" "$cron" "$file" <<'PY' > /tmp/bb-deploy-payload.json
 import json, os, sys
-name, auth, path, impersonation, desc, file = sys.argv[1:7]
+name, auth, path, impersonation, desc, cron, file = sys.argv[1:8]
+triggers = []
+if path:
+    triggers.append({"type": "http", "config": {"auth": auth, "path": path, "method": "POST"}})
+if cron:
+    triggers.append({"type": "cron", "config": {"schedule": cron, "timezone": "America/Los_Angeles"}})
 payload = {
     "name": name,
     "description": desc,
     "code": open(file).read(),
-    "triggers": [{"type": "http", "config": {"auth": auth, "path": path, "method": "POST"}}],
+    "triggers": triggers,
     "allow_service_key_impersonation": impersonation == "true",
     # SERVICE_KEY: the platform does not inject a REST-usable service key into
     # ctx.env, so functions that call billing endpoints receive it here
@@ -71,10 +77,12 @@ PY
 selected=("$@")
 for cfg in "${CONFIGS[@]}"; do
   IFS='|' read -r name auth path impersonation desc <<<"$cfg"
+  cron=""
+  [[ "$name" == "sync-student-ages" ]] && cron="0 0 * * *"
   if [[ ${#selected[@]} -gt 0 ]]; then
     match=false
     for s in "${selected[@]}"; do [[ "$s" == "$name" ]] && match=true; done
     $match || continue
   fi
-  deploy_one "$name" "$auth" "$path" "$impersonation" "$desc"
+  deploy_one "$name" "$auth" "$path" "$impersonation" "$desc" "$cron"
 done

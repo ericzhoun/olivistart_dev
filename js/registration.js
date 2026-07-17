@@ -2,6 +2,7 @@
 // Ported from herfield app/account/registration/[enrollmentId]/RegistrationFormClient.js.
 import { apiGet, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
 import { isLoggedIn, getUser, getToken, requireAuth } from "./auth.js";
+import { calculateAge } from "./student-age.js";
 
 const enrollmentId = getQueryParam("enrollment");
 const paymentSuccess = getQueryParam("payment") === "success";
@@ -153,9 +154,21 @@ function render() {
   // Student info
   form.appendChild(el("h4", "", "Student Information"));
   const studentRow = el("div", "form-row");
-  studentRow.appendChild(makeField("child_name", "Child's Name *", { required: true, placeholder: "Child's full name" }));
-  studentRow.appendChild(makeField("child_age", "Age *", { required: true, placeholder: "e.g. 8" }));
-  studentRow.appendChild(makeField("child_dob", "Date of Birth", { type: "date" }));
+  studentRow.appendChild(makeField("child_name", "Student Name *", { required: true, placeholder: "Student's full name" }));
+  const age = calculateAge(state.form.child_dob);
+  state.form.child_age = age == null ? "" : String(age);
+  const ageField = makeField(null, "Age", { value: state.form.child_age, readOnly: true });
+  studentRow.appendChild(ageField);
+  const dobField = makeField("child_dob", "Date of Birth *", { type: "date", required: true });
+  const dobInput = dobField.querySelector("input");
+  const ageInput = ageField.querySelector("input");
+  dobInput.oninput = (e) => {
+    state.form.child_dob = e.target.value;
+    const updatedAge = calculateAge(state.form.child_dob);
+    state.form.child_age = updatedAge == null ? "" : String(updatedAge);
+    ageInput.value = state.form.child_age;
+  };
+  studentRow.appendChild(dobField);
   form.appendChild(studentRow);
 
   // Parent/guardian
@@ -241,7 +254,6 @@ async function handleSubmit(e) {
     await callFunction("complete-registration", {
       enrollment_id: enrollmentId,
       child_name: state.form.child_name,
-      child_age: state.form.child_age,
       child_dob: state.form.child_dob,
       parent_name: state.form.parent_name,
       emergency_contact: state.form.emergency_contact,
