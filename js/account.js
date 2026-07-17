@@ -701,6 +701,11 @@ async function loadStudents() {
 
 async function handleSaveStudent(name, dob, notes) {
   if (!name) { state.studentFormError = "Name is required"; render(); return; }
+  if (calculateAge(dob) == null) {
+    state.studentFormError = "A valid date of birth is required";
+    render();
+    return;
+  }
   state.studentFormSaving = true;
   state.studentFormError = "";
   render();

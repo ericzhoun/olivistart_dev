@@ -126,6 +126,15 @@ test("student form derives a read-only age from its date of birth", async () => 
   assert.doesNotMatch(account, /action: "add", name, age, dob, notes/);
 });
 
+test("student form blocks saves with a missing or invalid date of birth", async () => {
+  const account = await readFile(new URL("../js/account.js", import.meta.url), "utf8");
+
+  assert.match(
+    account,
+    /if \(calculateAge\(dob\) == null\) \{\s*state\.studentFormError = "A valid date of birth is required";\s*render\(\);\s*return;\s*\}/
+  );
+});
+
 function calculateAge(dob, today = new Date()) {
   const [year, month, day] = dob.split("-").map(Number);
   const age = today.getUTCFullYear() - year;
