@@ -2,20 +2,30 @@
 // with their dates of birth so reports can read them without recalculating.
 export async function handler(_req, ctx) {
   const enrollmentResult = await ctx.db.query(
-    `UPDATE enrollments
-     SET child_age = EXTRACT(YEAR FROM age(CURRENT_DATE, child_dob::date))::int::text
+    `WITH utc_today AS (
+       SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date AS date
+     )
+     UPDATE enrollments
+     SET child_age = EXTRACT(YEAR FROM age(utc_today.date, to_date(child_dob, 'FXYYYY-MM-DD')))::int::text
+     FROM utc_today
      WHERE child_dob ~ '^\\d{4}-\\d{2}-\\d{2}$'
-       AND child_dob::date <= CURRENT_DATE
-       AND child_age IS DISTINCT FROM EXTRACT(YEAR FROM age(CURRENT_DATE, child_dob::date))::int::text
+       AND to_char(to_date(child_dob, 'FXYYYY-MM-DD'), 'YYYY-MM-DD') = child_dob
+       AND to_date(child_dob, 'FXYYYY-MM-DD') <= utc_today.date
+       AND child_age IS DISTINCT FROM EXTRACT(YEAR FROM age(utc_today.date, to_date(child_dob, 'FXYYYY-MM-DD')))::int::text
      RETURNING id`
   );
 
   const studentResult = await ctx.db.query(
-    `UPDATE students
-     SET age = EXTRACT(YEAR FROM age(CURRENT_DATE, dob::date))::int::text
+    `WITH utc_today AS (
+       SELECT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date AS date
+     )
+     UPDATE students
+     SET age = EXTRACT(YEAR FROM age(utc_today.date, to_date(dob, 'FXYYYY-MM-DD')))::int::text
+     FROM utc_today
      WHERE dob ~ '^\\d{4}-\\d{2}-\\d{2}$'
-       AND dob::date <= CURRENT_DATE
-       AND age IS DISTINCT FROM EXTRACT(YEAR FROM age(CURRENT_DATE, dob::date))::int::text
+       AND to_char(to_date(dob, 'FXYYYY-MM-DD'), 'YYYY-MM-DD') = dob
+       AND to_date(dob, 'FXYYYY-MM-DD') <= utc_today.date
+       AND age IS DISTINCT FROM EXTRACT(YEAR FROM age(utc_today.date, to_date(dob, 'FXYYYY-MM-DD')))::int::text
      RETURNING id`
   );
 

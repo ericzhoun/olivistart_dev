@@ -74,9 +74,44 @@ test("daily age sync recalculates enrollment and student ages", async () => {
   assert.deepEqual(await response.json(), { updated: 5 });
   assert.equal(queries.length, 2);
   assert.match(queries[0], /UPDATE enrollments/);
-  assert.match(queries[0], /CURRENT_DATE/);
-  assert.match(queries[0], /child_dob::date <= CURRENT_DATE/);
+  assert.match(queries[0], /CURRENT_TIMESTAMP AT TIME ZONE 'UTC'/);
   assert.match(queries[1], /UPDATE students/);
   assert.match(queries[1], /SET age =/);
-  assert.match(queries[1], /dob::date <= CURRENT_DATE/);
+  assert.match(queries[1], /CURRENT_TIMESTAMP AT TIME ZONE 'UTC'/);
+});
+
+test("daily age sync only calculates ages for calendar-valid ISO dates", async () => {
+  const queries = [];
+  await syncStudentAges(new Request("https://example.test/sync-student-ages"), {
+    db: {
+      async query(sql) {
+        queries.push(sql);
+        return { rows: [] };
+      },
+    },
+  });
+
+  assert.equal(queries.length, 2);
+  for (const [query, column] of [[queries[0], "child_dob"], [queries[1], "dob"]]) {
+    assert.match(query, new RegExp(`to_date\\(${column}, 'FXYYYY-MM-DD'\\)`));
+    assert.match(query, new RegExp(`to_char\\(to_date\\(${column}, 'FXYYYY-MM-DD'\\), 'YYYY-MM-DD'\\) = ${column}`));
+    assert.doesNotMatch(query, new RegExp(`${column}::date`));
+  }
+});
+
+test("daily age sync anchors all refresh calculations to the UTC calendar date", async () => {
+  const queries = [];
+  await syncStudentAges(new Request("https://example.test/sync-student-ages"), {
+    db: {
+      async query(sql) {
+        queries.push(sql);
+        return { rows: [] };
+      },
+    },
+  });
+
+  for (const query of queries) {
+    assert.match(query, /\(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'\)::date/);
+    assert.doesNotMatch(query, /CURRENT_DATE/);
+  }
 });
