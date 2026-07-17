@@ -10,13 +10,12 @@ Make `index.html` the single destination for OliVista's program information. Mov
 
 The homepage keeps its existing hero at the top. The current condensed "We Offer" teaser is replaced by one Programs area with the `programs` anchor. That area contains, in order:
 
-1. Combine the age-to-program mapping table, with the program introduction
-2. The existing philosophy teaser and call-to-action
+1. The program introduction combined with the age-to-program mapping table.
+2. The existing philosophy teaser and call-to-action.
 3. The full Visual Discovery section.
 4. The full Young Photographer Camp section.
 5. The full Creative Foundations section.
 6. The full Portfolio Studio section.
-
 
 ## Navigation and Links
 
@@ -26,7 +25,7 @@ Program links within the homepage use local section anchors such as `#visual-dis
 
 ## Content Preservation
 
-The move preserves all content currently in `programs.html`, including the uncommitted image update for Visual Discovery and the four-program age mapping. Existing program-specific classes and section IDs remain intact so the current styling continues to apply.
+The consolidation preserves all Programs content, including the Visual Discovery image update and the four-program age mapping. Existing program-specific classes and section IDs remain intact so the current styling continues to apply.
 
 ## File Removal and Compatibility
 
