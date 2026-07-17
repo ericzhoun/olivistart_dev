@@ -53,6 +53,29 @@ function el(tag, className, html) {
   return e;
 }
 
+function calculateAge(dob, today = new Date()) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob);
+  if (!match) return null;
+
+  const [, yearString, monthString, dayString] = match;
+  const year = Number(yearString);
+  const month = Number(monthString);
+  const day = Number(dayString);
+  const birthDate = new Date(year, month - 1, day);
+  if (
+    birthDate.getFullYear() !== year ||
+    birthDate.getMonth() !== month - 1 ||
+    birthDate.getDate() !== day
+  ) return null;
+
+  let age = today.getFullYear() - year;
+  if (
+    today.getMonth() < month - 1 ||
+    (today.getMonth() === month - 1 && today.getDate() < day)
+  ) age -= 1;
+  return age;
+}
+
 function createPasswordCodeInputs() {
   const group = el("div", "password-code-inputs");
   const inputs = Array.from({ length: 6 }, (_, index) => {
@@ -622,15 +645,22 @@ function renderStudentsTab() {
     if (state.studentFormSaving) nameI.disabled = true;
     nameL.appendChild(nameI); form.appendChild(nameL);
 
+    const dobL = el("label", "", "Date of Birth");
+    const dobI = document.createElement("input"); dobI.type = "date"; dobI.name = "dob";
+    dobI.value = state.editingStudent?.dob || ""; dobI.required = true;
+    if (state.studentFormSaving) dobI.disabled = true;
+    dobL.appendChild(dobI); form.appendChild(dobL);
+
     const ageL = el("label", "", "Age");
     const ageI = document.createElement("input"); ageI.type = "text"; ageI.name = "age";
-    ageI.value = state.editingStudent?.age || "";
+    ageI.readOnly = true;
+    const updateAge = () => {
+      const age = calculateAge(dobI.value);
+      ageI.value = age == null ? "" : String(age);
+    };
+    updateAge();
+    dobI.oninput = () => updateAge();
     ageL.appendChild(ageI); form.appendChild(ageL);
-
-    const dobL = el("label", "", "Date of Birth");
-    const dobI = document.createElement("input"); dobI.type = "text"; dobI.name = "dob";
-    dobI.value = state.editingStudent?.dob || ""; dobI.placeholder = "e.g. 2018-03-15";
-    dobL.appendChild(dobI); form.appendChild(dobL);
 
     const notesL = el("label", "", "Notes (allergies, interests)");
     const notesI = document.createElement("textarea"); notesI.name = "notes"; notesI.rows = 2;
@@ -641,7 +671,6 @@ function renderStudentsTab() {
     saveBtn.disabled = state.studentFormSaving;
     saveBtn.onclick = () => handleSaveStudent(
       form.querySelector('[name="name"]').value.trim(),
-      form.querySelector('[name="age"]').value.trim(),
       form.querySelector('[name="dob"]').value.trim(),
       form.querySelector('[name="notes"]').value.trim()
     );
@@ -670,7 +699,7 @@ async function loadStudents() {
   }
 }
 
-async function handleSaveStudent(name, age, dob, notes) {
+async function handleSaveStudent(name, dob, notes) {
   if (!name) { state.studentFormError = "Name is required"; render(); return; }
   state.studentFormSaving = true;
   state.studentFormError = "";
@@ -678,9 +707,9 @@ async function handleSaveStudent(name, age, dob, notes) {
   try {
     const token = await refreshToken();
     if (state.editingStudent) {
-      await callFunction("manage-students", { action: "update", id: state.editingStudent.id, name, age, dob, notes }, token);
+      await callFunction("manage-students", { action: "update", id: state.editingStudent.id, name, dob, notes }, token);
     } else {
-      await callFunction("manage-students", { action: "add", name, age, dob, notes }, token);
+      await callFunction("manage-students", { action: "add", name, dob, notes }, token);
     }
     state.showStudentForm = false;
     state.editingStudent = null;

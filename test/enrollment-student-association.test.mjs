@@ -118,6 +118,14 @@ test("the enrollment card lets a parent assign it to one of their students", asy
   assert.match(account, /action: "assign-enrollment", enrollment_id: en\.id, student_id: studentId/);
 });
 
+test("student form derives a read-only age from its date of birth", async () => {
+  const account = await readFile(new URL("../js/account.js", import.meta.url), "utf8");
+  assert.match(account, /dobI\.type = "date"/);
+  assert.match(account, /ageI\.readOnly = true/);
+  assert.match(account, /dobI\.oninput/);
+  assert.doesNotMatch(account, /action: "add", name, age, dob, notes/);
+});
+
 function calculateAge(dob, today = new Date()) {
   const [year, month, day] = dob.split("-").map(Number);
   const age = today.getUTCFullYear() - year;
