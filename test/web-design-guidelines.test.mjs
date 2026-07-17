@@ -5,13 +5,39 @@ import { test } from "node:test";
 const read = (file) => readFile(new URL(`../${file}`, import.meta.url), "utf8");
 
 test("public pages expose a skip link and main-content target", async () => {
-  const pages = ["index.html", "programs.html", "schedule.html", "about.html", "contact.html", "portfolio.html"];
+  const pages = ["index.html", "schedule.html", "about.html", "contact.html", "portfolio.html"];
 
   for (const page of pages) {
     const html = await read(page);
     assert.match(html, /class="skip-link" href="#main-content"/);
     assert.match(html, /<main id="main-content">/);
   }
+});
+
+test("public navigation targets the homepage Programs section", async () => {
+  const pages = [
+    "index.html",
+    "about.html",
+    "account.html",
+    "checkout-success.html",
+    "contact.html",
+    "enroll.html",
+    "login.html",
+    "portfolio.html",
+    "registration.html",
+    "schedule.html",
+    "signup.html",
+  ];
+
+  for (const page of pages) {
+    const html = await read(page);
+    assert.match(html, /href="index\.html#programs">Programs<\/a>/, `${page} should link to homepage Programs`);
+    assert.doesNotMatch(html, /href="programs\.html(?:#[^"]*)?"/);
+  }
+});
+
+test("standalone Programs page has been removed", async () => {
+  await assert.rejects(read("programs.html"), { code: "ENOENT" });
 });
 
 test("shared styles preserve keyboard focus and reduce motion", async () => {
@@ -63,11 +89,11 @@ test("auth fields include meaningful names, autocomplete, and live status", asyn
 });
 
 test("content images and controls have stable, meaningful semantics", async () => {
-  const [about, contact, portfolio, programs, qr] = await Promise.all([
+  const [about, contact, portfolio, index, qr] = await Promise.all([
     read("about.html"),
     read("contact.html"),
     read("portfolio.html"),
-    read("programs.html"),
+    read("index.html"),
     read("qr-code.html"),
   ]);
 
@@ -75,5 +101,5 @@ test("content images and controls have stable, meaningful semantics", async () =
   assert.match(contact, /wechat-qr\.png"[^>]*width="344"[^>]*height="344"/);
   assert.match(qr, /alt="QR Code"[^>]*width="512"[^>]*height="512"/);
   assert.match(portfolio, /class="portfolio-thumb" type="button" aria-label="Open Visual Discovery artwork 1"/);
-  assert.doesNotMatch(programs, /alt="kids draw"|alt="color painting"/);
+  assert.doesNotMatch(index, /alt="kids draw"|alt="color painting"/);
 });
