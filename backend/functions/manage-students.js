@@ -2,6 +2,8 @@
 // independent of enrollments. Admins (Olivia) can manage any student.
 // HTTP trigger: auth "required". Writes run as the end user (RLS-enforced);
 // ownership is re-checked server-side as defense in depth.
+import { calculateStudentAge } from "../../js/student-age.js";
+
 export async function handler(req, ctx) {
   if (!ctx.user) return json({ error: "Authentication required" }, 401);
 
@@ -37,7 +39,7 @@ async function add(ctx, body) {
   const name = str(body.name);
   if (!name) return json({ error: "Student name is required" }, 400);
   const dob = str(body.dob);
-  const age = calculateAge(dob);
+  const age = calculateStudentAge(dob);
   if (age == null) return json({ error: "A valid date of birth is required" }, 400);
 
   const res = await ctx.db.query(
@@ -52,7 +54,7 @@ async function update(ctx, body, isAdminUser) {
   const id = str(body.id);
   if (!id) return json({ error: "Student id is required" }, 400);
   const dob = str(body.dob);
-  const age = calculateAge(dob);
+  const age = calculateStudentAge(dob);
   if (age == null) return json({ error: "A valid date of birth is required" }, 400);
 
   const fields = {};
@@ -120,24 +122,6 @@ function str(v) {
   if (v == null) return null;
   const s = String(v).trim();
   return s === "" ? null : s;
-}
-
-function calculateAge(dob, today = new Date()) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob || "")) return null;
-
-  const [year, month, day] = dob.split("-").map(Number);
-  const birthDate = new Date(Date.UTC(year, month - 1, day));
-  if (
-    birthDate.getUTCFullYear() !== year ||
-    birthDate.getUTCMonth() !== month - 1 ||
-    birthDate.getUTCDate() !== day
-  ) return null;
-
-  const age = today.getUTCFullYear() - year;
-  const birthdayHasPassed =
-    today.getUTCMonth() > month - 1 ||
-    (today.getUTCMonth() === month - 1 && today.getUTCDate() >= day);
-  return age - (birthdayHasPassed ? 0 : 1);
 }
 
 function json(obj, status) {

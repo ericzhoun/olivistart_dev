@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 import { handler } from "../backend/functions/manage-students.js";
+import { calculateAge } from "../js/student-age.js";
 
 function request(body) {
   return new Request("https://example.test/manage-students", {
@@ -71,7 +72,7 @@ test("student creation rejects missing or invalid dates of birth", async () => {
     db: { async query() { throw new Error("should not query"); } },
   };
 
-  for (const dob of [undefined, "2015-02-30"]) {
+  for (const dob of [undefined, "2015-02-30", "2015-2-03", "9999-12-31"]) {
     const response = await handler(request({ action: "add", name: "Ada", dob }), ctx);
     assert.equal(response.status, 400);
     assert.deepEqual(await response.json(), { error: "A valid date of birth is required" });
@@ -120,7 +121,10 @@ test("the enrollment card lets a parent assign it to one of their students", asy
 
 test("student form derives a read-only age from its date of birth", async () => {
   const account = await readFile(new URL("../js/account.js", import.meta.url), "utf8");
+  assert.match(account, /import \{ calculateStudentAge \} from "\.\/student-age\.js"/);
+  assert.doesNotMatch(account, /function calculateAge\(/);
   assert.match(account, /dobI\.type = "date"/);
+  assert.match(account, /dobI\.max = new Date\(\)\.toISOString\(\)\.slice\(0, 10\)/);
   assert.match(account, /ageI\.readOnly = true/);
   assert.match(account, /dobI\.oninput/);
   assert.doesNotMatch(account, /action: "add", name, age, dob, notes/);
@@ -131,15 +135,6 @@ test("student form blocks saves with a missing or invalid date of birth", async 
 
   assert.match(
     account,
-    /if \(calculateAge\(dob\) == null\) \{\s*state\.studentFormError = "A valid date of birth is required";\s*render\(\);\s*return;\s*\}/
+    /if \(calculateStudentAge\(dob\) == null\) \{\s*state\.studentFormError = "A valid date of birth is required";\s*render\(\);\s*return;\s*\}/
   );
 });
-
-function calculateAge(dob, today = new Date()) {
-  const [year, month, day] = dob.split("-").map(Number);
-  const age = today.getUTCFullYear() - year;
-  const birthdayHasPassed =
-    today.getUTCMonth() > month - 1 ||
-    (today.getUTCMonth() === month - 1 && today.getUTCDate() >= day);
-  return age - (birthdayHasPassed ? 0 : 1);
-}

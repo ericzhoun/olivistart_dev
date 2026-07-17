@@ -2,6 +2,7 @@
 // Ported from herfield app/account/AccountPageClient.js, compiled to vanilla JS.
 import { apiGet, apiGetByIds, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
 import { isLoggedIn, getUser, isAdmin, logout, getToken, refreshToken, requireAuth, claimEnrollments } from "./auth.js";
+import { calculateStudentAge } from "./student-age.js";
 
 // Require login — redirect to login.html if not authenticated.
 const user = requireAuth();
@@ -51,29 +52,6 @@ function el(tag, className, html) {
   if (className) e.className = className;
   if (html != null) e.innerHTML = html;
   return e;
-}
-
-function calculateAge(dob, today = new Date()) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob);
-  if (!match) return null;
-
-  const [, yearString, monthString, dayString] = match;
-  const year = Number(yearString);
-  const month = Number(monthString);
-  const day = Number(dayString);
-  const birthDate = new Date(year, month - 1, day);
-  if (
-    birthDate.getFullYear() !== year ||
-    birthDate.getMonth() !== month - 1 ||
-    birthDate.getDate() !== day
-  ) return null;
-
-  let age = today.getFullYear() - year;
-  if (
-    today.getMonth() < month - 1 ||
-    (today.getMonth() === month - 1 && today.getDate() < day)
-  ) age -= 1;
-  return age;
 }
 
 function createPasswordCodeInputs() {
@@ -648,6 +626,7 @@ function renderStudentsTab() {
     const dobL = el("label", "", "Date of Birth");
     const dobI = document.createElement("input"); dobI.type = "date"; dobI.name = "dob";
     dobI.value = state.editingStudent?.dob || ""; dobI.required = true;
+    dobI.max = new Date().toISOString().slice(0, 10);
     if (state.studentFormSaving) dobI.disabled = true;
     dobL.appendChild(dobI); form.appendChild(dobL);
 
@@ -655,7 +634,7 @@ function renderStudentsTab() {
     const ageI = document.createElement("input"); ageI.type = "text"; ageI.name = "age";
     ageI.readOnly = true;
     const updateAge = () => {
-      const age = calculateAge(dobI.value);
+      const age = calculateStudentAge(dobI.value);
       ageI.value = age == null ? "" : String(age);
     };
     updateAge();
@@ -701,7 +680,7 @@ async function loadStudents() {
 
 async function handleSaveStudent(name, dob, notes) {
   if (!name) { state.studentFormError = "Name is required"; render(); return; }
-  if (calculateAge(dob) == null) {
+  if (calculateStudentAge(dob) == null) {
     state.studentFormError = "A valid date of birth is required";
     render();
     return;

@@ -17,3 +17,11 @@ export function calculateAge(dob, today = new Date()) {
     (today.getUTCMonth() === month - 1 && today.getUTCDate() >= day);
   return age - (birthdayHasPassed ? 0 : 1);
 }
+
+// Student profiles require an actual date of birth, so dates after the
+// current UTC calendar date are invalid. Checkout retains its established
+// calculateAge behavior independently.
+export function calculateStudentAge(dob, today = new Date()) {
+  const age = calculateAge(dob, today);
+  return age == null || age < 0 ? null : age;
+}

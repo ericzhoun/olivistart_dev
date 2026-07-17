@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { calculateAge } from "../js/student-age.js";
+import { calculateAge, calculateStudentAge } from "../js/student-age.js";
 import { handler as completeRegistration } from "../backend/functions/complete-registration.js";
 import { handler as syncStudentAges } from "../backend/functions/sync-student-ages.js";
 
@@ -14,6 +14,14 @@ test("calculateAge accepts leap-day birthdays and rejects invalid dates", () => 
   assert.equal(calculateAge("2020-02-29", new Date("2025-02-28T12:00:00Z")), 4);
   assert.equal(calculateAge("2020-02-29", new Date("2025-03-01T12:00:00Z")), 5);
   assert.equal(calculateAge("2020-02-30", new Date("2026-07-16T12:00:00Z")), null);
+});
+
+test("calculateStudentAge rejects future and malformed non-ISO dates without changing checkout age calculation", () => {
+  const today = new Date("2026-07-17T23:59:59Z");
+
+  assert.equal(calculateStudentAge("2026-07-18", today), null);
+  assert.equal(calculateStudentAge("2015-2-03", today), null);
+  assert.equal(calculateAge("2026-07-18", today), -1);
 });
 
 test("registration saves an age derived from date of birth, not a submitted age", async () => {
@@ -45,19 +53,30 @@ test("registration saves an age derived from date of birth, not a submitted age"
   assert.equal(queries[0].values.includes("555-0100"), true);
 });
 
-test("daily age sync recalculates every enrollment with a date of birth", async () => {
+test("daily age sync recalculates enrollment and student ages", async () => {
   const queries = [];
   const response = await syncStudentAges(new Request("https://example.test/sync-student-ages"), {
     db: {
       async query(sql) {
         queries.push(sql);
-        return { rows: [{ id: "enrollment-1" }, { id: "enrollment-2" }] };
+        if (/UPDATE enrollments/.test(sql)) {
+          return { rows: [{ id: "enrollment-1" }, { id: "enrollment-2" }] };
+        }
+        if (/UPDATE students/.test(sql)) {
+          return { rows: [{ id: "student-1" }, { id: "student-2" }, { id: "student-3" }] };
+        }
+        throw new Error(`Unexpected query: ${sql}`);
       },
     },
   });
 
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { updated: 2 });
+  assert.deepEqual(await response.json(), { updated: 5 });
+  assert.equal(queries.length, 2);
   assert.match(queries[0], /UPDATE enrollments/);
   assert.match(queries[0], /CURRENT_DATE/);
+  assert.match(queries[0], /child_dob::date <= CURRENT_DATE/);
+  assert.match(queries[1], /UPDATE students/);
+  assert.match(queries[1], /SET age =/);
+  assert.match(queries[1], /dob::date <= CURRENT_DATE/);
 });
