@@ -53,6 +53,41 @@ function el(tag, className, html) {
   return e;
 }
 
+function createPasswordCodeInputs() {
+  const group = el("div", "password-code-inputs");
+  const inputs = Array.from({ length: 6 }, (_, index) => {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.inputMode = "numeric";
+    input.autocomplete = index === 0 ? "one-time-code" : "off";
+    input.maxLength = 1;
+    input.className = "code-input";
+    input.setAttribute("aria-label", `Digit ${index + 1} of 6`);
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/\D/g, "").slice(-1);
+      if (input.value && index < inputs.length - 1) inputs[index + 1].focus();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Backspace" && !input.value && index > 0) {
+        inputs[index - 1].value = "";
+        inputs[index - 1].focus();
+      }
+    });
+    input.addEventListener("paste", (event) => {
+      event.preventDefault();
+      const digits = event.clipboardData.getData("text").replace(/\D/g, "");
+      digits.slice(0, inputs.length - index).split("").forEach((digit, offset) => {
+        inputs[index + offset].value = digit;
+      });
+      inputs[Math.min(index + digits.length, inputs.length - 1)].focus();
+    });
+    group.appendChild(input);
+    return input;
+  });
+
+  return { group, inputs, readCode: () => inputs.map((input) => input.value).join("") };
+}
+
 // ---- lookups ----
 function getScheduleForSession(sessionId) {
   const sess = state.sessions.find((s) => s.id === sessionId);
@@ -395,15 +430,10 @@ function renderProfileTab() {
     pwSection.appendChild(sendBtn);
   } else {
     const codeLabel = el("label", "", "6-digit code");
-    const codeInput = document.createElement("input");
-    codeInput.type = "text";
-    codeInput.name = "code";
-    codeInput.inputMode = "numeric";
-    codeInput.maxLength = 6;
-    codeInput.placeholder = "123456";
-    codeInput.className = "code-input";
-    codeLabel.appendChild(codeInput);
+    const { group: codeInputGroup, inputs: codeInputs, readCode } = createPasswordCodeInputs();
+    codeLabel.appendChild(codeInputGroup);
     pwSection.appendChild(codeLabel);
+    requestAnimationFrame(() => codeInputs[0].focus());
 
     const pwLabel = el("label", "", "New password");
     const pwInput = document.createElement("input");
@@ -425,7 +455,7 @@ function renderProfileTab() {
 
     const confirmBtn = el("button", "btn btn-sm", state.pwLoading ? "Resetting…" : "Reset Password");
     confirmBtn.disabled = state.pwLoading;
-    confirmBtn.onclick = () => handlePwConfirm(codeInput.value, pwInput.value, pwInput2.value);
+    confirmBtn.onclick = () => handlePwConfirm(readCode(), pwInput.value, pwInput2.value);
     pwSection.appendChild(confirmBtn);
 
     const resend = el("button", "btn btn-sm btn-secondary", "Resend code");

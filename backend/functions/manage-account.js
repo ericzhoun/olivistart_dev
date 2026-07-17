@@ -18,11 +18,13 @@ export async function handler(req, ctx) {
   if (action === "update-contact") {
     return updateContact(ctx, body);
   }
+  const me = await currentUser(req, ctx, apiBase, appId);
+  if (!me) return json({ error: "Could not verify identity" }, 403);
   if (action === "change-password-init") {
-    return changePasswordInit(ctx, apiBase, appId);
+    return changePasswordInit(me.email, apiBase, appId);
   }
   if (action === "change-password-confirm") {
-    return changePasswordConfirm(ctx, body, apiBase, appId);
+    return changePasswordConfirm(me.email, body, apiBase, appId);
   }
   return json({ error: "Unknown action" }, 400);
 }
@@ -56,8 +58,7 @@ async function updateContact(ctx, body) {
 }
 
 // Triggers a forgot-password email for the caller's own email.
-async function changePasswordInit(ctx, apiBase, appId) {
-  const email = ctx.user.email;
+async function changePasswordInit(email, apiBase, appId) {
   if (!email) return json({ error: "Account has no email on file" }, 400);
 
   const res = await fetch(`${apiBase}/auth/${appId}/forgot-password`, {
@@ -75,8 +76,7 @@ async function changePasswordInit(ctx, apiBase, appId) {
 }
 
 // Completes the password reset with the emailed code + new password.
-async function changePasswordConfirm(ctx, body, apiBase, appId) {
-  const email = ctx.user.email;
+async function changePasswordConfirm(email, body, apiBase, appId) {
   const code = str(body.code);
   const newPassword = str(body.new_password);
 
@@ -96,6 +96,22 @@ async function changePasswordConfirm(ctx, body, apiBase, appId) {
   }
   // reset-password invalidates all sessions; the client must re-login.
   return json({ success: true }, 200);
+}
+
+// Function auth exposes the user id but not necessarily the profile email.
+// Resolve it from the forwarded end-user token and verify it matches ctx.user.
+async function currentUser(req, ctx, apiBase, appId) {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) return null;
+
+  const res = await fetch(`${apiBase}/auth/${appId}/me`, {
+    headers: { Authorization: authHeader },
+  });
+  if (!res.ok) return null;
+
+  const data = await res.json().catch(() => ({}));
+  const user = data.user || data;
+  return user?.email && user.id === ctx.user.id ? user : null;
 }
 
 function str(v) {

@@ -2580,6 +2580,18 @@ textarea {
   margin: 0.5rem 0;
 }
 
+.password-code-inputs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.password-code-inputs .code-input {
+  width: 2.75rem;
+  letter-spacing: 0;
+  margin: 0.5rem 0;
+}
+
 /* Students section */
 .students-section {
   margin-top: 2rem;
