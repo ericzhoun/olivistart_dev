@@ -497,6 +497,11 @@ a, button, input, select, textarea {
   text-align: center;
 }
 
+#programs,
+.program-section {
+  scroll-margin-top: 88px;
+}
+
 .schedule-enroll-banner {
   background: #fff3cd;
   border: 1px solid #e4c766;

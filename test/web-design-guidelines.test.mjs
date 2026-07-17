@@ -22,6 +22,36 @@ test("shared styles preserve keyboard focus and reduce motion", async () => {
   assert.doesNotMatch(css, /transition:\s*all/);
 });
 
+test("homepage presents the complete Programs flow in the revised order", async () => {
+  const index = await read("index.html");
+  const orderedMarkers = [
+    'id="programs"',
+    'class="container age-mapping"',
+    'class="container philosophy-teaser"',
+    'class="cta-banner"',
+    'id="visual-discovery"',
+    'id="young-photographer"',
+    'id="creative-foundations"',
+    'id="portfolio-studio"',
+  ];
+
+  let previousPosition = -1;
+  for (const marker of orderedMarkers) {
+    const position = index.indexOf(marker);
+    assert.ok(position > previousPosition, `${marker} should appear in the revised homepage order`);
+    previousPosition = position;
+  }
+
+  assert.match(index, /assets\/art-class\/artPortfolio1\.jpg/);
+  assert.match(index, /<h2>Young Photographer Camp<\/h2>/);
+  assert.doesNotMatch(index, /class="teaser-grid"/);
+});
+
+test("homepage anchors clear the sticky navigation", async () => {
+  const css = await read("css/style.css");
+  assert.match(css, /#programs,\s*\.program-section\s*\{[^}]*scroll-margin-top:\s*88px/s);
+});
+
 test("auth fields include meaningful names, autocomplete, and live status", async () => {
   const [login, signup] = await Promise.all([read("login.html"), read("signup.html")]);
 
