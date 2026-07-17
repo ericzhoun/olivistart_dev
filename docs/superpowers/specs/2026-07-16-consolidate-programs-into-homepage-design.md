@@ -4,7 +4,7 @@
 
 ## Goal
 
-Make `index.html` the single destination for OliVista's program information. Move the complete Programs page content into the homepage, update links to target the homepage section, and remove `programs.html`.
+Make `index.html` the single destination for OliVista's program information. Move the complete Programs page content into the homepage, remove the Programs tab from every header, and remove `programs.html`.
 
 ## Page Structure
 
@@ -20,9 +20,9 @@ The homepage keeps its existing hero at the top. The current condensed "We Offer
 
 ## Navigation and Links
 
-Every site navigation link labeled Programs will point to `index.html#programs`. Program links within the homepage will use local section anchors such as `#visual-discovery`. Links from schedules and other pages that currently target `programs.html` will also point to the new homepage destination.
+Remove the Programs tab from the header navigation on every page. Do not hide it with CSS or retain inaccessible Programs link markup. The homepage Programs content remains available by scrolling and through direct fragment URLs.
 
-The Home navigation item remains active on `index.html`. The Programs section does not introduce a second active navigation state.
+Program links within the homepage use local section anchors such as `#visual-discovery`. The Home navigation item remains active on `index.html`. The Programs section does not introduce a second active navigation state.
 
 ## Content Preservation
 
@@ -37,7 +37,7 @@ Delete `programs.html` after all references have been migrated. No redirect file
 Verification will cover:
 
 - Automated tests and repository checks.
-- A search confirming that active site files no longer link to `programs.html`.
+- A search confirming that active site files no longer link to `programs.html` and no header contains a Programs tab.
 - Homepage loading and anchor navigation for Programs and each program section.
-- Desktop and mobile visual inspection, with particular attention to section spacing, navigation behavior, image layout, and accidental content duplication.
+- Desktop and mobile visual inspection, with particular attention to header spacing, navigation behavior, section spacing, image layout, and accidental content duplication.
 - Confirmation that deleting `programs.html` does not leave it in the automated page list.
