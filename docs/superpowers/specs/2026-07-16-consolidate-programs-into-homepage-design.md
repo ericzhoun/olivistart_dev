@@ -10,14 +10,13 @@ Make `index.html` the single destination for OliVista's program information. Mov
 
 The homepage keeps its existing hero at the top. The current condensed "We Offer" teaser is replaced by one Programs area with the `programs` anchor. That area contains, in order:
 
-1. The Programs introduction.
-2. The age-to-program mapping table.
+1. Combine the age-to-program mapping table, with the program introduction
+2. The existing philosophy teaser and call-to-action
 3. The full Visual Discovery section.
 4. The full Young Photographer Camp section.
 5. The full Creative Foundations section.
 6. The full Portfolio Studio section.
 
-The existing philosophy teaser and final call-to-action remain below the full Programs content. Replacing the teaser avoids repeating program names and summaries on the same page.
 
 ## Navigation and Links
 
