@@ -14,7 +14,7 @@ test("public pages expose a skip link and main-content target", async () => {
   }
 });
 
-test("public navigation targets the homepage Programs section", async () => {
+test("public headers omit the Programs tab", async () => {
   const pages = [
     "index.html",
     "about.html",
@@ -31,9 +31,13 @@ test("public navigation targets the homepage Programs section", async () => {
 
   for (const page of pages) {
     const html = await read(page);
-    assert.match(html, /href="index\.html#programs">Programs<\/a>/, `${page} should link to homepage Programs`);
-    assert.doesNotMatch(html, /href="programs\.html(?:#[^"]*)?"/);
+    const navigation = html.match(/<nav class="site-nav"[\s\S]*?<\/nav>/)?.[0];
+    assert.ok(navigation, `${page} should contain the site navigation`);
+    assert.doesNotMatch(navigation, />Programs<\/a>/);
+    assert.doesNotMatch(navigation, /index\.html#programs/);
   }
+
+  assert.match(await read("index.html"), /<section id="programs" class="programs-overview">/);
 });
 
 test("standalone Programs page has been removed", async () => {
