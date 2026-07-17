@@ -2,7 +2,7 @@
 // HTTP trigger: auth "required". Replaces the former client-side service-key
 // PATCH (the service key must never ship to browsers).
 const FIELDS = [
-  "child_name", "child_dob", "parent_name",
+  "child_name", "child_dob", "parent_name", "student_phone",
   "emergency_contact", "allergies", "referred_by",
 ];
 

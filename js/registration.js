@@ -60,6 +60,7 @@ const state = {
     child_age: "",
     child_dob: "",
     parent_name: user?.display_name || user?.email || "",
+    student_phone: "",
     emergency_contact: "",
     allergies: "",
     referred_by: "",
@@ -176,7 +177,7 @@ function render() {
   const parentRow = el("div", "form-row");
   parentRow.appendChild(makeField("parent_name", "Parent/Guardian Name *", { required: true }));
   parentRow.appendChild(makeField(null, "Email", { type: "email", value: user?.email || "", readOnly: true }));
-  parentRow.appendChild(makeField(null, "Phone", { type: "tel", value: state.enrollment?.student_phone || "", readOnly: true }));
+  parentRow.appendChild(makeField("student_phone", "Phone", { type: "tel", value: state.form.student_phone }));
   form.appendChild(parentRow);
 
   form.appendChild(makeField("emergency_contact", "Emergency Contact (if different)", { placeholder: "Name and phone number" }));
@@ -256,6 +257,7 @@ async function handleSubmit(e) {
       child_name: state.form.child_name,
       child_dob: state.form.child_dob,
       parent_name: state.form.parent_name,
+      student_phone: state.form.student_phone,
       emergency_contact: state.form.emergency_contact,
       allergies: state.form.allergies,
       referred_by: state.form.referred_by,
@@ -286,6 +288,7 @@ async function init() {
     }
     const en = enrollments[0];
     state.enrollment = en;
+    state.form.student_phone = en.student_phone || "";
 
     if (en.registration_complete) {
       window.location.href = "account.html?registration=complete";

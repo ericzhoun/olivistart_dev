@@ -26,6 +26,7 @@ test("registration saves an age derived from date of birth, not a submitted age"
       child_name: "Student Example",
       child_age: "99",
       child_dob: "2015-10-20",
+      student_phone: "555-0100",
     }),
   }), {
     user: { id: "parent-1" },
@@ -41,6 +42,7 @@ test("registration saves an age derived from date of birth, not a submitted age"
   assert.equal(queries.length, 1);
   assert.equal(queries[0].values.includes("99"), false);
   assert.equal(queries[0].values.includes(String(calculateAge("2015-10-20"))), true);
+  assert.equal(queries[0].values.includes("555-0100"), true);
 });
 
 test("daily age sync recalculates every enrollment with a date of birth", async () => {

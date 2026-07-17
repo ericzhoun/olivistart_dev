@@ -8,5 +8,6 @@ test("registration labels the student and derives age from date of birth", async
   assert.match(registration, /"Student Name \*"/);
   assert.match(registration, /calculateAge\(state\.form\.child_dob\)/);
   assert.match(registration, /readOnly: true/);
+  assert.match(registration, /makeField\("student_phone", "Phone", \{ type: "tel", value: state\.form\.student_phone \}\)/);
   assert.doesNotMatch(registration, /"Child's Name \*"/);
 });
