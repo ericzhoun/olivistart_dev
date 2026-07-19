@@ -32,18 +32,18 @@ The schedule's underlying shape is expected to evolve (e.g. a program card that 
   <script type="application/json" id="schedule-snapshot">{...}</script>
   <!-- SCHEDULE_SNAPSHOT_END -->
   ```
-- The markers make re-running the script idempotent — it only ever replaces its own prior output.
+- The markers make re-running the script idempotent - it only ever replaces its own prior output.
 - The script is run once by hand as part of building this feature, so the shipped page starts with a real, populated snapshot rather than an empty one.
 
 ### Shared query source
 
 The three query paths above are defined once, as plain exported functions (e.g. `semestersQuery()`, `programsQuery()`, `scheduleQuery(semesterId)`) in `js/api.js`. `js/api.js` has no browser-only code at module load time (the one `window` reference lives inside a function body, not top-level), so it can be imported unmodified from both the browser (`schedule.js`) and the Node bake script. Both the live-fetch fallback and the bake script call the same functions to build request paths.
 
-This means a future schema change — new filters, a renamed table, an additional query for a new kind of schedule entry — is made in exactly one place, and the baked snapshot and the live fallback can never silently diverge from each other.
+This means a future schema change - new filters, a renamed table, an additional query for a new kind of schedule entry - is made in exactly one place, and the baked snapshot and the live fallback can never silently diverge from each other.
 
 ### Verbatim snapshot
 
-The bake script stores each query's raw JSON response in the snapshot unmodified — no field selection, renaming, or reshaping. `schedulesBySemester[semesterId]` is exactly what `class_schedules?semester_id=eq.<id>&...` returns today, whatever columns it has. If the schedule format later changes (e.g. a row representing a program that spans the whole week instead of a single day/time slot, via a new column or a `day_of_week: null` convention), those rows flow through the snapshot untouched. Only `schedule.js`'s `render()` function needs to learn how to draw the new shape — the bake mechanism itself does not need to change.
+The bake script stores each query's raw JSON response in the snapshot unmodified - no field selection, renaming, or reshaping. `schedulesBySemester[semesterId]` is exactly what `class_schedules?semester_id=eq.<id>&...` returns today, whatever columns it has. If the schedule format later changes (e.g. a row representing a program that spans the whole week instead of a single day/time slot, via a new column or a `day_of_week: null` convention), those rows flow through the snapshot untouched. Only `schedule.js`'s `render()` function needs to learn how to draw the new shape - the bake mechanism itself does not need to change.
 
 ## GitHub Actions workflow (`.github/workflows/bake-schedule.yml`)
 
@@ -71,7 +71,7 @@ The bake script stores each query's raw JSON response in the snapshot unmodified
 
 ## Error handling / robustness
 
-- A missing or malformed snapshot never breaks the page — it silently drops to the pre-existing live-fetch code path.
+- A missing or malformed snapshot never breaks the page - it silently drops to the pre-existing live-fetch code path.
 - The workflow only commits when the snapshot actually changed, keeping `schedule.html`'s git history meaningful.
 - No new secrets or credentials are introduced.
 
@@ -87,4 +87,4 @@ The bake script stores each query's raw JSON response in the snapshot unmodified
 
 ## Scope
 
-This change covers `schedule.html`'s calendar view and the shared query helpers in `js/api.js` it depends on. It does not change how the admin CMS edits schedules, does not add authentication/secrets to the workflow, and does not add a "last updated" indicator to the UI. It also does not implement rendering support for new schedule shapes (e.g. a whole-week program card) — it only ensures the bake mechanism won't need to change when that rendering work happens. Other pages and the live Butterbase API itself are untouched.
+This change covers `schedule.html`'s calendar view and the shared query helpers in `js/api.js` it depends on. It does not change how the admin CMS edits schedules, does not add authentication/secrets to the workflow, and does not add a "last updated" indicator to the UI. It also does not implement rendering support for new schedule shapes (e.g. a whole-week program card) - it only ensures the bake mechanism won't need to change when that rendering work happens. Other pages and the live Butterbase API itself are untouched.
