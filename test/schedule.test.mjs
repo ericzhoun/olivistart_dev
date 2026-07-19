@@ -1,8 +1,26 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+import { semestersQuery, programsQuery, scheduleQuery } from "../js/api.js";
 
 const readSchedule = () => readFile(new URL("../js/schedule.js", import.meta.url), "utf8");
+
+test("schedule query helpers produce the exact REST paths schedule.js and the bake script share", () => {
+  assert.equal(semestersQuery(), "semesters?active=eq.true&order=start_date.desc");
+  assert.equal(programsQuery(), "programs?active=eq.true&order=sort_order.asc");
+  assert.equal(
+    scheduleQuery("abc-123"),
+    "class_schedules?semester_id=eq.abc-123&active=eq.true&order=day_of_week.asc,start_time.asc"
+  );
+});
+
+test("schedule.js uses the shared query helpers instead of inline query strings", async () => {
+  const script = await readSchedule();
+  assert.match(script, /semestersQuery\(\)/);
+  assert.match(script, /programsQuery\(\)/);
+  assert.match(script, /scheduleQuery\(/);
+  assert.doesNotMatch(script, /class_schedules\?semester_id=eq\.\$\{/);
+});
 
 test("schedule failures provide an accessible retry action", async () => {
   const script = await readSchedule();

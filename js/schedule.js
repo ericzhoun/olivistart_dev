@@ -1,6 +1,6 @@
 // Weekly class schedule — calendar grid view.
 // Ported from herfield app/art-class/CalendarView.js, compiled to vanilla JS.
-import { apiGet, formatPrice, formatTime } from "./api.js";
+import { apiGet, formatPrice, formatTime, semestersQuery, programsQuery, scheduleQuery } from "./api.js";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY_SHORT = { Monday: "Mon", Tuesday: "Tue", Wednesday: "Wed", Thursday: "Thu", Friday: "Fri", Saturday: "Sat", Sunday: "Sun" };
@@ -193,9 +193,7 @@ async function changeSemester(semesterId) {
   state.loading = true;
   render();
   try {
-    state.schedules = await apiGet(
-      `class_schedules?semester_id=eq.${semesterId}&active=eq.true&order=day_of_week.asc,start_time.asc`
-    );
+    state.schedules = await apiGet(scheduleQuery(semesterId));
     state.error = "";
   } catch (err) {
     state.error = err.message;
@@ -208,8 +206,8 @@ async function changeSemester(semesterId) {
 async function init() {
   try {
     const [sems, programs] = await Promise.all([
-      apiGet("semesters?active=eq.true&order=start_date.desc"),
-      apiGet("programs?active=eq.true&order=sort_order.asc"),
+      apiGet(semestersQuery()),
+      apiGet(programsQuery()),
     ]);
     state.semesters = sems;
     state.programs = programs;
@@ -218,9 +216,7 @@ async function init() {
       const summer2026 = sems.find((semester) => semester.name.trim().toLowerCase() === "summer 2026");
       const defaultSemester = summer2026 || sems[0];
       state.selectedSemester = defaultSemester.id;
-      state.schedules = await apiGet(
-        `class_schedules?semester_id=eq.${defaultSemester.id}&active=eq.true&order=day_of_week.asc,start_time.asc`
-      );
+      state.schedules = await apiGet(scheduleQuery(defaultSemester.id));
     }
   } catch (err) {
     state.error = err.message;

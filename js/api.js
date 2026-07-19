@@ -88,3 +88,19 @@ export function formatTime(time) {
 export function getQueryParam(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
+
+/** Query paths for the schedule page's semesters, programs, and per-semester class
+ *  schedules. Shared between the live in-browser fetch (schedule.js) and the
+ *  build-time bake script (scripts/bake-schedule.mjs) so both stay in sync if the
+ *  schema or filters ever change. */
+export function semestersQuery() {
+  return "semesters?active=eq.true&order=start_date.desc";
+}
+
+export function programsQuery() {
+  return "programs?active=eq.true&order=sort_order.asc";
+}
+
+export function scheduleQuery(semesterId) {
+  return `class_schedules?semester_id=eq.${semesterId}&active=eq.true&order=day_of_week.asc,start_time.asc`;
+}
