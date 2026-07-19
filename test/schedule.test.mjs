@@ -96,3 +96,18 @@ test("pickDefaultSemester prefers Summer 2026, else falls back to the first seme
   assert.equal(pickDefaultSemester(semesters).id, "s2");
   assert.equal(pickDefaultSemester([{ id: "s3", name: "Fall 2025" }]).id, "s3");
 });
+
+test("init hydrates from the baked snapshot before falling back to a live fetch", async () => {
+  const script = await readSchedule();
+  assert.match(script, /getElementById\("schedule-snapshot"\)/);
+  assert.match(script, /parseSnapshot\(/);
+  assert.match(script, /pickDefaultSemester\(/);
+});
+
+test("changeSemester prefers the baked schedulesBySemester map before falling back to a live fetch", async () => {
+  const script = await readSchedule();
+  const fn = script.match(/async function changeSemester[\s\S]*?\n}\n/);
+  assert.ok(fn, "changeSemester should be defined");
+  assert.match(fn[0], /state\.schedulesBySemester\[semesterId\]/);
+  assert.match(fn[0], /scheduleQuery\(semesterId\)/);
+});

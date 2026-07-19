@@ -212,6 +212,14 @@ function render() {
 
 async function changeSemester(semesterId) {
   state.selectedSemester = semesterId;
+
+  if (state.schedulesBySemester && state.schedulesBySemester[semesterId]) {
+    state.schedules = state.schedulesBySemester[semesterId];
+    state.error = "";
+    render();
+    return;
+  }
+
   state.loading = true;
   render();
   try {
@@ -226,6 +234,21 @@ async function changeSemester(semesterId) {
 }
 
 async function init() {
+  const snapshotEl = document.getElementById("schedule-snapshot");
+  const snapshot = snapshotEl ? parseSnapshot(snapshotEl.textContent) : null;
+
+  if (snapshot) {
+    state.semesters = snapshot.semesters;
+    state.programs = snapshot.programs;
+    state.schedulesBySemester = snapshot.schedulesBySemester;
+    const defaultSemester = pickDefaultSemester(snapshot.semesters);
+    state.selectedSemester = defaultSemester.id;
+    state.schedules = snapshot.schedulesBySemester[defaultSemester.id] || [];
+    state.loading = false;
+    render();
+    return;
+  }
+
   try {
     const [sems, programs] = await Promise.all([
       apiGet(semestersQuery()),
@@ -235,8 +258,7 @@ async function init() {
     state.programs = programs;
 
     if (sems.length > 0) {
-      const summer2026 = sems.find((semester) => semester.name.trim().toLowerCase() === "summer 2026");
-      const defaultSemester = summer2026 || sems[0];
+      const defaultSemester = pickDefaultSemester(sems);
       state.selectedSemester = defaultSemester.id;
       state.schedules = await apiGet(scheduleQuery(defaultSemester.id));
     }
