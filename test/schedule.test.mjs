@@ -61,3 +61,38 @@ test("age group labels are prefixed with 'Age' when they are a bare digit range"
   assert.equal(formatAgeGroup("Teens"), "Teens");
   assert.equal(formatAgeGroup(""), "");
 });
+
+test("parseSnapshot returns null for missing, empty, or malformed snapshot data", async () => {
+  const script = await readSchedule();
+  const match = script.match(/export function parseSnapshot[\s\S]*?\n}\n/);
+  assert.ok(match, "parseSnapshot helper should be exported");
+
+  const moduleUrl = new URL(`data:text/javascript,${encodeURIComponent(`${match[0]}\nexport default parseSnapshot;`)}`);
+  const { default: parseSnapshot } = await import(moduleUrl);
+
+  assert.equal(parseSnapshot(""), null);
+  assert.equal(parseSnapshot(null), null);
+  assert.equal(parseSnapshot("not json"), null);
+  assert.equal(parseSnapshot(JSON.stringify({ semesters: [] })), null);
+  assert.equal(parseSnapshot(JSON.stringify({ semesters: [{ id: "s1" }] })), null);
+
+  const valid = JSON.stringify({
+    semesters: [{ id: "s1", name: "Summer 2026" }],
+    programs: [],
+    schedulesBySemester: { s1: [] },
+  });
+  assert.deepEqual(parseSnapshot(valid), JSON.parse(valid));
+});
+
+test("pickDefaultSemester prefers Summer 2026, else falls back to the first semester", async () => {
+  const script = await readSchedule();
+  const match = script.match(/export function pickDefaultSemester[\s\S]*?\n}\n/);
+  assert.ok(match, "pickDefaultSemester helper should be exported");
+
+  const moduleUrl = new URL(`data:text/javascript,${encodeURIComponent(`${match[0]}\nexport default pickDefaultSemester;`)}`);
+  const { default: pickDefaultSemester } = await import(moduleUrl);
+
+  const semesters = [{ id: "s1", name: "Fall 2025" }, { id: "s2", name: "Summer 2026" }];
+  assert.equal(pickDefaultSemester(semesters).id, "s2");
+  assert.equal(pickDefaultSemester([{ id: "s3", name: "Fall 2025" }]).id, "s3");
+});

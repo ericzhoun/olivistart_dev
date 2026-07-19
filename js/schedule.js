@@ -40,11 +40,33 @@ function formatAgeGroup(ageGroup) {
   return trimmed;
 }
 
+/** Parse the baked #schedule-snapshot payload. Returns null when missing, empty, or malformed. */
+export function parseSnapshot(rawText) {
+  if (!rawText) return null;
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    return null;
+  }
+  if (!data || !Array.isArray(data.semesters) || data.semesters.length === 0) return null;
+  if (!Array.isArray(data.programs)) return null;
+  if (!data.schedulesBySemester || typeof data.schedulesBySemester !== "object") return null;
+  return data;
+}
+
+/** Pick the default semester: "Summer 2026" if present, else the first in the list. */
+export function pickDefaultSemester(semesters) {
+  const summer2026 = semesters.find((s) => s.name.trim().toLowerCase() === "summer 2026");
+  return summer2026 || semesters[0];
+}
+
 const state = {
   semesters: [],
   programs: [],
   schedules: [],
   selectedSemester: null,
+  schedulesBySemester: null,
   loading: true,
   error: "",
 };
