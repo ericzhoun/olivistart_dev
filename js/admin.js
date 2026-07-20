@@ -30,7 +30,15 @@ function form(fields, values = {}, title = "Edit record") {
     const value = values[key] ?? "";
     return type === "date" && value ? String(value).slice(0, 10) : value;
   };
-  return `<form id="record-form" class="admin-form"><h3>${title}</h3><p class="auth-error" id="form-error" hidden></p>${fields.map(([key, label, type = "text", extra = ""]) => `<label>${label}<${type === "textarea" ? "textarea" : "input"} name="${key}" type="${type}" value="${esc(inputValue(key, type))}" ${extra}>${type === "textarea" ? esc(values[key] ?? "") : ""}</${type === "textarea" ? "textarea" : "input"}></label>`).join("")}<div class="form-actions"><button type="submit" class="btn btn-sm" data-save-button>Save</button><button type="button" class="btn btn-sm btn-secondary" data-action="cancel-form">Cancel</button></div></form>`;
+  const field = ([key, label, type = "text", extra = ""]) => {
+    if (type === "select") {
+      const options = extra;
+      const selected = values[key] ?? options[0][0];
+      return `<label>${label}<select name="${key}">${options.map(([value, text]) => `<option value="${esc(value)}" ${value === selected ? "selected" : ""}>${esc(text)}</option>`).join("")}</select></label>`;
+    }
+    return `<label>${label}<${type === "textarea" ? "textarea" : "input"} name="${key}" type="${type}" value="${esc(inputValue(key, type))}" ${extra}>${type === "textarea" ? esc(values[key] ?? "") : ""}</${type === "textarea" ? "textarea" : "input"}></label>`;
+  };
+  return `<form id="record-form" class="admin-form"><h3>${title}</h3><p class="auth-error" id="form-error" hidden></p>${fields.map(field).join("")}<div class="form-actions"><button type="submit" class="btn btn-sm" data-save-button>Save</button><button type="button" class="btn btn-sm btn-secondary" data-action="cancel-form">Cancel</button></div></form>`;
 }
 
 async function dashboard() {
@@ -38,7 +46,7 @@ async function dashboard() {
   app.innerHTML = `<h1>Dashboard</h1><div class="stat-grid">${[[programs.length,"Programs","programs"],[schedules.length,"Class Schedules","schedules"],[enrollments.length,"Enrollments","enrollments"]].map(([n,l,id]) => `<a href="#${id}" class="stat-card"><span class="stat-number">${n}</span><span class="stat-label">${l}</span></a>`).join("")}</div><section class="dashboard-quick-links"><h2>Quick Actions</h2><div class="quick-link-grid"><a class="quick-link" href="#schedules"><h3>Manage Schedules →</h3><p>Add class times, prices, and capacity.</p></a><a class="quick-link" href="#programs"><h3>Manage Programs →</h3><p>Create or update art program types.</p></a><a class="quick-link" href="#enrollments"><h3>View Enrollments →</h3><p>Review students and payment status.</p></a></div></section>`;
 }
 const configs = {
-  programs: { title: "Programs", endpoint: "programs?order=sort_order.asc", fields: [["name","Name"],["slug","Slug"],["description","Description","textarea"],["image_url","Image URL"],["sort_order","Sort Order","number"],["num_classes","Number of Classes","number"],["early_bird_discount_pct","Early-Bird Discount %","number"],["early_bird_deadline","Early-Bird Deadline","date"]], cols: ["name","num_classes","active"], labels: ["Name","Classes","Active"] },
+  programs: { title: "Programs", endpoint: "programs?order=sort_order.asc", fields: [["name","Name"],["slug","Slug"],["description","Description","textarea"],["image_url","Image URL"],["sort_order","Sort Order","number"],["program_type","Program Type","select",[["class","Class"],["camp","Camp"]]],["num_classes","Number of Classes (for camps, set to the number of days in the bundle - e.g. 5 for Mon-Fri)","number"],["early_bird_discount_pct","Early-Bird Discount %","number"],["early_bird_deadline","Early-Bird Deadline","date"]], cols: ["name","program_type","num_classes","active"], labels: ["Name","Type","Classes","Active"] },
   semesters: { title: "Semesters", endpoint: "semesters?order=start_date.desc", fields: [["name","Name"],["start_date","Start Date","date"],["end_date","End Date","date"]], cols: ["name","start_date","end_date","active"], labels: ["Name","Start","End","Active"] },
   schedules: { title: "Class Schedules", endpoint: "class_schedules?order=created_at.desc", fields: [], cols: ["program_id","semester_id","day_of_week","session_type","start_time","age_group","price_cents","max_seats","active"], labels: ["Program","Semester","Day","Session","Start","Age","Price","Seats","Active"] },
 };
@@ -96,6 +104,7 @@ async function crud(id) {
     if (id === "schedules" && key === "program_id") return programs.find((p) => p.id === item.program_id)?.name || "-";
     if (id === "schedules" && key === "semester_id") return semesters.find((s) => s.id === item.semester_id)?.name || "-";
     if (id === "schedules" && key === "session_type") return SESSION_TYPES[sessionTypeFor(item)].label;
+    if (id === "programs" && key === "program_type") return item.program_type === "camp" ? "Camp" : "Class";
     if (key.includes("date")) return date(item[key]);
     if (key === "price_cents") return formatPrice(item[key]);
     return item[key] ?? (key === "active" ? "✓" : "-");
