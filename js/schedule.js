@@ -1,6 +1,6 @@
 // Weekly class schedule — calendar grid view.
 // Ported from herfield app/art-class/CalendarView.js, compiled to vanilla JS.
-import { apiGet, formatPrice, formatTime, semestersQuery, programsQuery, scheduleQuery } from "./api.js";
+import { apiGet, formatPrice, formatTime, semestersQuery, programsQuery, scheduleQuery, groupCampBundles } from "./api.js";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY_SHORT = { Monday: "Mon", Tuesday: "Tue", Wednesday: "Wed", Thursday: "Thu", Friday: "Fri", Saturday: "Sat", Sunday: "Sun" };
@@ -134,31 +134,81 @@ function render() {
     return;
   }
 
+  // ---- Camp bundles vs. regular per-day schedules ----
+  const { bundles, singles } = groupCampBundles(state.schedules, state.programs);
+  const campStartCells = new Map();
+  bundles.forEach((bundle) => campStartCells.set(`${bundle.days[0]}|${bundle.startTime}`, bundle));
+
   // ---- Desktop weekly grid ----
   const byDay = {};
   DAYS.forEach((d) => (byDay[d] = []));
-  state.schedules.forEach((s) => { if (byDay[s.day_of_week]) byDay[s.day_of_week].push(s); });
+  singles.forEach((s) => { if (byDay[s.day_of_week]) byDay[s.day_of_week].push(s); });
 
-  const allTimes = [...new Set(state.schedules.map((s) => s.start_time))].sort();
-  const slotMap = schedulesBySlot(state.schedules);
+  const allTimes = [...new Set([...singles.map((s) => s.start_time), ...bundles.map((b) => b.startTime)])].sort();
+  const slotMap = schedulesBySlot(singles);
 
   const wrapper = el("div", "calendar-grid-wrapper");
   const grid = el("div", "calendar-grid");
 
-  grid.appendChild(el("div", "calendar-cell calendar-corner", "Time"));
-  DAYS.forEach((day) => {
-    grid.appendChild(el("div", "calendar-cell calendar-day-header", DAY_SHORT[day]));
+  const timeHeader = el("div", "calendar-cell calendar-corner", "Time");
+  timeHeader.style.gridColumn = "1";
+  timeHeader.style.gridRow = "1";
+  grid.appendChild(timeHeader);
+  DAYS.forEach((day, dayIndex) => {
+    const header = el("div", "calendar-cell calendar-day-header", DAY_SHORT[day]);
+    header.style.gridColumn = String(dayIndex + 2);
+    header.style.gridRow = "1";
+    grid.appendChild(header);
   });
 
-  allTimes.forEach((time) => {
-    grid.appendChild(el("div", "calendar-cell calendar-time-label", formatTime(time)));
-    DAYS.forEach((day) => {
+  allTimes.forEach((time, timeIndex) => {
+    const rowNum = timeIndex + 2;
+    const timeLabel = el("div", "calendar-cell calendar-time-label", formatTime(time));
+    timeLabel.style.gridColumn = "1";
+    timeLabel.style.gridRow = String(rowNum);
+    grid.appendChild(timeLabel);
+
+    let dayIndex = 0;
+    while (dayIndex < DAYS.length) {
+      const day = DAYS[dayIndex];
+      const bundle = campStartCells.get(`${day}|${time}`);
+
+      if (bundle) {
+        const span = DAYS.indexOf(bundle.days[bundle.days.length - 1]) - dayIndex + 1;
+        const prog = state.programs.find((p) => p.id === bundle.programId);
+        const color = getColorForProgram(bundle.programId, state.programs);
+        const cell = el("div", "calendar-cell calendar-class-cell");
+        cell.style.gridColumn = `${dayIndex + 2} / span ${span}`;
+        cell.style.gridRow = String(rowNum);
+        const a = el("a", "calendar-class");
+        a.href = `enroll.html?schedule=${bundle.schedules[0].id}`;
+        a.style.background = color.bg;
+        a.style.borderColor = color.border;
+        a.style.color = color.text;
+        a.appendChild(el("span", "calendar-class-program", prog ? prog.name : "Camp"));
+        a.appendChild(el("span", "calendar-class-time",
+          `${formatTime(bundle.startTime)}–${formatTime(bundle.endTime)}`));
+        a.appendChild(el("span", "calendar-class-price",
+          `${formatPrice(bundle.pricePerClassCents)} × ${bundle.days.length} days = ${formatPrice(bundle.totalCents)}`));
+        cell.appendChild(a);
+        grid.appendChild(cell);
+        dayIndex += span;
+        continue;
+      }
+
       const schedules = slotMap[`${day}|${time}`] || [];
+      const cellColumn = dayIndex + 2;
       if (schedules.length === 0) {
-        grid.appendChild(el("div", "calendar-cell calendar-empty"));
-        return;
+        const empty = el("div", "calendar-cell calendar-empty");
+        empty.style.gridColumn = String(cellColumn);
+        empty.style.gridRow = String(rowNum);
+        grid.appendChild(empty);
+        dayIndex += 1;
+        continue;
       }
       const cell = el("div", "calendar-cell calendar-class-cell");
+      cell.style.gridColumn = String(cellColumn);
+      cell.style.gridRow = String(rowNum);
       schedules.forEach((sched) => {
         const prog = state.programs.find((p) => p.id === sched.program_id);
         const color = getColorForProgram(sched.program_id, state.programs);
@@ -175,17 +225,39 @@ function render() {
         cell.appendChild(a);
       });
       grid.appendChild(cell);
-    });
+      dayIndex += 1;
+    }
   });
   wrapper.appendChild(grid);
   root.appendChild(wrapper);
 
   // ---- Mobile list grouped by day ----
   const mobile = el("div", "calendar-mobile");
-  DAYS.filter((d) => byDay[d].length > 0).forEach((day) => {
+  DAYS.filter((d) => byDay[d].length > 0 || bundles.some((b) => b.days[0] === d)).forEach((day) => {
     const group = el("div", "calendar-day-group");
     group.appendChild(el("h4", "calendar-day-title", day));
     const list = el("div", "calendar-day-classes");
+
+    bundles.filter((b) => b.days[0] === day).forEach((bundle) => {
+      const prog = state.programs.find((p) => p.id === bundle.programId);
+      const color = getColorForProgram(bundle.programId, state.programs);
+      const card = el("a", "calendar-class-mobile");
+      card.href = `enroll.html?schedule=${bundle.schedules[0].id}`;
+      card.style.borderLeftColor = color.border;
+      card.style.background = color.bg;
+      const header = el("div", "calendar-class-mobile-header");
+      header.style.color = color.text;
+      header.appendChild(el("span", "calendar-class-program", prog ? prog.name : "Camp"));
+      header.appendChild(el("span", "calendar-class-price",
+        `${formatPrice(bundle.pricePerClassCents)} × ${bundle.days.length} days = ${formatPrice(bundle.totalCents)}`));
+      card.appendChild(header);
+      const details = el("div", "calendar-class-mobile-details");
+      details.appendChild(el("span", "",
+        `${bundle.days.join(", ")} · ${formatTime(bundle.startTime)}–${formatTime(bundle.endTime)}`));
+      card.appendChild(details);
+      list.appendChild(card);
+    });
+
     byDay[day].forEach((sched) => {
       const prog = state.programs.find((p) => p.id === sched.program_id);
       const color = getColorForProgram(sched.program_id, state.programs);

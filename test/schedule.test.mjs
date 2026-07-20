@@ -22,6 +22,17 @@ test("schedule.js uses the shared query helpers instead of inline query strings"
   assert.doesNotMatch(script, /class_schedules\?semester_id=eq\.\$\{/);
 });
 
+test("schedule.js groups camp bundles instead of rendering one block per day", async () => {
+  const script = await readSchedule();
+  assert.match(script, /groupCampBundles\(/);
+  assert.match(script, /gridColumn/);
+});
+
+test("schedule.js shows the per-day price times day count for camp bundles", async () => {
+  const script = await readSchedule();
+  assert.match(script, /days = \$\{formatPrice\(bundle\.totalCents\)\}/);
+});
+
 test("schedule failures provide an accessible retry action", async () => {
   const script = await readSchedule();
 
