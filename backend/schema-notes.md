@@ -37,3 +37,16 @@ payload; the endpoint treats omitted tables as drops and refuses them without
   `ON DELETE SET NULL`, plus `idx_enrollments_student` for student enrollment
   lookups. Existing enrollments remain intact until their parent associates
   them from the account page.
+
+## 2026-07-19 - camp program type (migration_id 29)
+
+- Added `programs.program_type` (`text`, default `'class'`). Allowed values
+  `'class'` and `'camp'`. A camp program's `class_schedules` rows (created
+  via the existing admin multi-day schedule form) are grouped into one
+  enrollable bundle by matching `program_id, semester_id, session_type,
+  start_time, end_time, age_group, price_cents, max_seats` - see
+  `js/api.js` `scheduleBundleKey`/`groupCampBundles`. No other schema or
+  backend function changes; `enroll-guard`/`guest-enroll` already price a
+  bundle correctly because they compute `price_per_class_cents *
+  num_classes_enrolled`, and the frontend now sends the bundle's day count
+  as `num_classes_enrolled` for camps.
