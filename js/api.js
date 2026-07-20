@@ -89,6 +89,72 @@ export function getQueryParam(name) {
   return new URLSearchParams(window.location.search).get(name);
 }
 
+/** Canonical weekly day order, Monday through Sunday. */
+export const WEEK_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+/** Comparator for sorting day_of_week strings into WEEK_DAYS order. */
+export function compareDayOfWeek(a, b) {
+  return WEEK_DAYS.indexOf(a) - WEEK_DAYS.indexOf(b);
+}
+
+/** Grouping key shared by every class_schedules row that belongs to the same
+ *  bundle: same program, semester, session, time, age group, price, and
+ *  capacity. Used to collapse a camp's Mon-Fri rows into one enrollable unit. */
+export function scheduleBundleKey(schedule) {
+  return [
+    schedule.program_id, schedule.semester_id, schedule.session_type,
+    schedule.start_time, schedule.end_time, schedule.age_group,
+    schedule.price_cents, schedule.max_seats,
+  ].join("|");
+}
+
+/** Partition a semester's class_schedules rows into camp bundles (grouped by
+ *  scheduleBundleKey, one entry per bundle) and singles (every row that
+ *  isn't a camp program's row, kept as-is). `programs` supplies program_type. */
+export function groupCampBundles(schedules, programs) {
+  const programTypeById = new Map(programs.map((p) => [p.id, p.program_type || "class"]));
+  const singles = [];
+  const byKey = new Map();
+  for (const schedule of schedules) {
+    if (programTypeById.get(schedule.program_id) !== "camp") {
+      singles.push(schedule);
+      continue;
+    }
+    const key = scheduleBundleKey(schedule);
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(schedule);
+  }
+  const bundles = [...byKey.entries()].map(([key, group]) => {
+    const sorted = [...group].sort((a, b) => compareDayOfWeek(a.day_of_week, b.day_of_week));
+    return {
+      key,
+      programId: sorted[0].program_id,
+      days: sorted.map((s) => s.day_of_week),
+      schedules: sorted,
+      startTime: sorted[0].start_time,
+      endTime: sorted[0].end_time,
+      pricePerClassCents: sorted[0].price_cents,
+      totalCents: sorted[0].price_cents * sorted.length,
+    };
+  });
+  return { bundles, singles };
+}
+
+/** REST query for every class_schedules row in the same camp bundle as
+ *  `schedule` (same program/semester/session/time/age group/price/capacity).
+ *  Used by enroll.js to fetch a camp's full day list. */
+export function campBundleQuery(schedule) {
+  return `class_schedules?program_id=eq.${schedule.program_id}` +
+    `&semester_id=eq.${schedule.semester_id}` +
+    `&session_type=eq.${schedule.session_type}` +
+    `&start_time=eq.${schedule.start_time}` +
+    `&end_time=eq.${schedule.end_time}` +
+    `&age_group=eq.${encodeURIComponent(schedule.age_group)}` +
+    `&price_cents=eq.${schedule.price_cents}` +
+    `&max_seats=eq.${schedule.max_seats}` +
+    `&active=eq.true&order=day_of_week.asc`;
+}
+
 /** Query paths for the schedule page's semesters, programs, and per-semester class
  *  schedules. Shared between the live in-browser fetch (schedule.js) and the
  *  build-time bake script (scripts/bake-schedule.mjs) so both stay in sync if the
