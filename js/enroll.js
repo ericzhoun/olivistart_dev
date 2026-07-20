@@ -1,6 +1,6 @@
 // Enroll page — class details, pricing breakdown, Stripe checkout.
 // Ported from herfield app/art-class/enroll/[scheduleId]/EnrollPageClient.js.
-import { apiGet, callFunction, formatPrice, formatTime, getQueryParam } from "./api.js";
+import { apiGet, callFunction, formatPrice, formatTime, getQueryParam, campBundleQuery, compareDayOfWeek } from "./api.js";
 import { isLoggedIn, getUser, getToken } from "./auth.js";
 
 const scheduleId = getQueryParam("schedule");
@@ -18,6 +18,8 @@ const state = {
   studentEmail: "",
   studentPhone: "",
   numClasses: 8,
+  isCamp: false,
+  campDays: [],
 };
 
 const root = document.getElementById("enroll-root");
@@ -102,7 +104,7 @@ function render() {
 
     const rowDay = el("div", "detail-row");
     rowDay.appendChild(el("span", "detail-label", "Day"));
-    rowDay.appendChild(el("span", "", schedule.day_of_week));
+    rowDay.appendChild(el("span", "", state.isCamp ? state.campDays.join(", ") : schedule.day_of_week));
     details.appendChild(rowDay);
 
     const rowTime = el("div", "detail-row");
@@ -136,29 +138,34 @@ function render() {
   rowPrice.appendChild(el("span", "", formatPrice(pricePerClass)));
   pricing.appendChild(rowPrice);
 
-  // Number-of-classes stepper
+  // Number-of-classes stepper (camps: fixed to the bundle size, not adjustable)
   const rowClasses = el("div", "pricing-row");
   const lbl = el("label", "", "Number of classes");
   lbl.setAttribute("for", "num-classes");
   rowClasses.appendChild(lbl);
 
-  const ctrl = el("div", "num-classes-control");
-  const minusBtn = el("button", "", "−");
-  minusBtn.type = "button";
-  minusBtn.disabled = state.numClasses <= 1 || isFull;
-  minusBtn.onclick = () => { state.numClasses = Math.max(1, state.numClasses - 1); render(); };
-  ctrl.appendChild(minusBtn);
+  if (state.isCamp) {
+    rowClasses.appendChild(el("span", "num-classes-value",
+      `${state.numClasses} (${state.campDays.join(", ")} - included, not adjustable)`));
+  } else {
+    const ctrl = el("div", "num-classes-control");
+    const minusBtn = el("button", "", "−");
+    minusBtn.type = "button";
+    minusBtn.disabled = state.numClasses <= 1 || isFull;
+    minusBtn.onclick = () => { state.numClasses = Math.max(1, state.numClasses - 1); render(); };
+    ctrl.appendChild(minusBtn);
 
-  ctrl.appendChild(el("span", "num-classes-value", String(state.numClasses)));
+    ctrl.appendChild(el("span", "num-classes-value", String(state.numClasses)));
 
-  const plusBtn = el("button", "", "+");
-  plusBtn.type = "button";
-  plusBtn.disabled = state.numClasses >= maxClasses || isFull;
-  plusBtn.onclick = () => { state.numClasses = Math.min(maxClasses, state.numClasses + 1); render(); };
-  ctrl.appendChild(plusBtn);
+    const plusBtn = el("button", "", "+");
+    plusBtn.type = "button";
+    plusBtn.disabled = state.numClasses >= maxClasses || isFull;
+    plusBtn.onclick = () => { state.numClasses = Math.min(maxClasses, state.numClasses + 1); render(); };
+    ctrl.appendChild(plusBtn);
 
-  ctrl.appendChild(el("span", "muted num-classes-max", `of ${maxClasses}`));
-  rowClasses.appendChild(ctrl);
+    ctrl.appendChild(el("span", "muted num-classes-max", `of ${maxClasses}`));
+    rowClasses.appendChild(ctrl);
+  }
   pricing.appendChild(rowClasses);
 
   const rowSub = el("div", "pricing-row pricing-subtotal");
@@ -328,6 +335,13 @@ async function init() {
     if (prog.length > 0) {
       state.program = prog[0];
       state.numClasses = prog[0].num_classes || 8;
+    }
+
+    if (state.program?.program_type === "camp") {
+      state.isCamp = true;
+      const siblings = await apiGet(campBundleQuery(state.schedule));
+      state.campDays = siblings.map((s) => s.day_of_week).sort(compareDayOfWeek);
+      state.numClasses = siblings.length || 1;
     }
 
     // Seat availability (confirmed + fresh pending holds). Anonymous REST
